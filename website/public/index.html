@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>go-voice — 用 FoloToy AI Passport 在 Mac 上语音输入</title>
-  <meta name="description" content="戴上 FoloToy AI Passport，按键说话。go-voice 在 Mac 本机转写，内置通用中文词库与 IT 行业包，保留个人专名与替换规则，可选 AI 润色，再把文字插入当前应用。不用 Mac 麦克风，不保存音频。">
+  <title>go-voice — 在 Mac 上按键说话，文字直达光标</title>
+  <meta name="description" content="用 FoloToy AI Passport 按键说话，或按住 Shift+Option 使用 Mac 麦克风。go-voice 在 Mac 本机转写，内置通用中文词库与 IT 行业包，保留个人专名与替换规则，可选 AI 润色，再把文字插入当前应用。不保存音频。">
   <meta property="og:title" content="go-voice">
-  <meta property="og:description" content="用 FoloToy AI Passport 在 Mac 上语音输入。内置通用词库与 IT 行业包，个人专名独立保留，可选 AI 润色，文字直达光标。">
+  <meta property="og:description" content="用 FoloToy AI Passport 或 Mac 麦克风热键语音输入。内置通用词库与 IT 行业包，个人专名独立保留，可选 AI 润色，文字直达光标。">
   <meta property="og:image" content="https://go-voice.yzsaas.net/img/ai-passport.webp">
   <meta property="og:url" content="https://go-voice.yzsaas.net/">
   <meta name="theme-color" content="#000000">
@@ -38,16 +38,16 @@
     <section class="hero">
       <span class="pill">macOS 26 · Apple 芯片 · 开源</span>
       <h1>开口说话，<br><em>文字直达光标</em></h1>
-      <p class="lead">戴上 FoloToy AI Passport，按键说话。go-voice 默认在 Mac 本机实时转写，也可选择在线识别；内置通用词库与 IT 行业包，结合你的专名和替换规则纠正，再按需润色、插入当前应用。</p>
+      <p class="lead">戴上 FoloToy AI Passport 按键说话，或按住 Shift+Option 使用 Mac 麦克风。go-voice 默认在 Mac 本机实时转写，也可选择在线识别；内置通用词库与 IT 行业包，结合你的专名和替换规则纠正，再按需润色、插入当前应用。</p>
       <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
       <div class="cta">
-        <a class="btn primary" data-dl="appleSilicon" href="https://github.com/vfasky/my-ai-audio/releases/download/go-voice-v0.6.2/go-voice-0.6.2-macOS-AppleSilicon.dmg">
+        <a class="btn primary" data-dl="appleSilicon" href="https://github.com/vfasky/my-ai-audio/releases/download/go-voice-v0.7.0/go-voice-0.7.0-macOS-AppleSilicon.dmg">
           <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
           下载 Apple 芯片版
         </a>
         <a class="btn" href="#buy-hardware">购买硬件</a>
       </div>
-      <p class="meta"><span data-version>v0.6.2</span> · macOS 26+ · 需要 FoloToy AI Passport</p>
+      <p class="meta"><span data-version>v0.7.0</span> · macOS 26+ · 工牌按键或 Mac 麦克风热键</p>
       <div class="shot hero-shot">
         <img src="/img/app.webp" width="1160" height="886" alt="go-voice 设备与语音页面，显示实时音频波形">
       </div>
@@ -60,7 +60,7 @@
       <div class="copy">
         <span class="pill">FoloToy AI Passport</span>
         <h2>挂在胸前的<br>随身麦克风</h2>
-        <p>开源可穿戴的 AI 工牌是 go-voice 唯一的收音设备：内置 ES8311 音频编解码器，通过蓝牙把语音实时传给 Mac，屏幕显示连接与收音状态。</p>
+        <p>开源可穿戴的 AI 工牌是 go-voice 的随身收音设备：内置 ES8311 音频编解码器，通过蓝牙把语音实时传给 Mac，屏幕显示连接与收音状态。</p>
         <ul class="keys">
           <li><kbd>UP</kbd><span>开始 / 结束说话</span></li>
           <li><kbd>DOWN</kbd><span>发送回车</span></li>
@@ -88,7 +88,7 @@
             <a class="btn" href="/img/ai-passport-purchase.jpg" target="_blank" rel="noopener noreferrer">查看购买大图 ↗</a>
           </div>
           <p class="purchase-hint">用微信扫描图中的小程序码，或保存图片后在微信中识别，查看商品与购买信息。图片中的价格和优惠以店铺实时页面为准。</p>
-          <p class="purchase-hint">官网展示原厂与社区玩法；使用 go-voice 需安装 Go Voice 固件，切换固件会替换设备当前玩法。</p>
+          <p class="purchase-hint">官网展示原厂与社区玩法；工牌搭配 go-voice 需安装 Go Voice 固件，切换固件会替换设备当前玩法。也可单独使用 Mac 麦克风热键听写。</p>
         </div>
       </div>
     </section>
@@ -99,7 +99,7 @@
         <li>
           <b>01</b>
           <h3>按键说话</h3>
-          <p>按下工牌 UP 键开始收音，go-voice 记住你当前所在的应用。</p>
+          <p>按下工牌 UP 键，或单独按住 Shift+Option 使用 Mac 麦克风，go-voice 记住你当前所在的应用。</p>
         </li>
         <li>
           <b>02</b>
@@ -190,7 +190,7 @@
         <h2>你的声音，留在你手里</h2>
         <p class="sub">默认全部在本机完成。任何云端处理都需要你明确选择。</p>
         <ul class="points">
-          <li><b>不用 Mac 麦克风</b>只接收你所选工牌的音频，应用不申请麦克风权限。</li>
+          <li><b>按需使用麦克风</b>工牌音频通过蓝牙接收；Mac 麦克风仅在按住热键时录音，首次使用需单独授权，可在“通用”页更换或关闭热键。</li>
           <li><b>不保存音频</b>音频只在内存中处理，不保存、不回放，也不保留转写历史。</li>
           <li><b>密钥只存钥匙串</b>API key 仅存入 macOS 钥匙串，不写入设置文件或日志；各在线服务商的凭据分开保存，已保存的 key 会在输入框中提示。</li>
           <li><b>不悄悄上云</b>识别失败时结束本次语音；润色失败时保留识别原文。不会自动切换到云端。</li>
@@ -207,17 +207,17 @@
       <div class="panel dl">
         <img src="/img/icon-256.png" alt="" width="96" height="96" class="app-icon">
         <h2>下载 go-voice</h2>
-        <p class="sub"><span data-version>v0.6.2</span> · 需要 macOS 26 或更高版本、Apple 芯片 Mac，免费使用</p>
+        <p class="sub"><span data-version>v0.7.0</span> · 需要 macOS 26 或更高版本、Apple 芯片 Mac，免费使用</p>
         <div class="cta">
-          <a class="btn primary" data-dl="appleSilicon" href="https://github.com/vfasky/my-ai-audio/releases/download/go-voice-v0.6.2/go-voice-0.6.2-macOS-AppleSilicon.dmg">
+          <a class="btn primary" data-dl="appleSilicon" href="https://github.com/vfasky/my-ai-audio/releases/download/go-voice-v0.7.0/go-voice-0.7.0-macOS-AppleSilicon.dmg">
             <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>
             Apple 芯片（M 系列）DMG
           </a>
         </div>
-        <p class="hint">将 go-voice 拖入“应用程序”，打开后按权限引导授予蓝牙、语音识别和辅助功能，再选择你的 FoloToy AI Passport。</p>
+        <p class="hint">将 go-voice 拖入“应用程序”，打开后按权限引导设置。可连接 FoloToy AI Passport，或在“通用”页设置 Mac 麦克风热键，首次使用时授权麦克风。</p>
         <p class="hint">还没有硬件？<a href="#buy-hardware">查看 AI Passport 介绍与购买方式 →</a></p>
         <p class="hint">
-          <a data-dl="checksums" href="https://github.com/vfasky/my-ai-audio/releases/download/go-voice-v0.6.2/SHA256SUMS.txt">SHA256 校验文件</a> ·
+          <a data-dl="checksums" href="https://github.com/vfasky/my-ai-audio/releases/download/go-voice-v0.7.0/SHA256SUMS.txt">SHA256 校验文件</a> ·
           <a href="https://github.com/vfasky/my-ai-audio/releases" rel="noopener">全部版本</a> ·
           <a href="https://github.com/vfasky/my-ai-audio/blob/main/gui/README.zh_CN.md" rel="noopener">使用指南</a>
         </p>

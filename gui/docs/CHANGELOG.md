@@ -6,6 +6,14 @@
 
 Each `## <version>` section is the release note of one signed `go-voice` release. `scripts/release.sh` requires the section in both language files; the Simplified Chinese section is signed into the update manifest and shown in the in-app update window, because the app interface is Chinese. Write user-visible changes only and keep both sections aligned. See [updates and releases](updates.md).
 
+## 0.7.0
+
+- Fix USB firmware installation stopping with `RECOVERY_MARKER_MISSING` on supported five-partition devices. Both supported layouts now use the same bounded USB ROM application-write flow, with image, chip, security, flash-size and partition checks, device checksum verification and reset. Bootloader, device identity, resources and Recovery storage stay in place. The packaged installer completed a real installation on the five-partition device.
+- Hold Shift+Option alone anywhere in macOS to dictate with the Mac microphone, then release to recognize and insert using the selected engine, vocabulary and refinement. Choose another chord or turn it off on General. Pressing another key cancels the recording so existing modifier shortcuts keep working. Microphone access is optional and requested on first use; online recognition sends this audio to the selected provider.
+- Update the app framework and updater. Release builds check about ten seconds after launch and daily, stage verified updates until the app exits, and relaunch through LaunchServices.
+
+Install the Apple Silicon DMG on macOS 26 or later, or choose Check for Updates… in an installed release. Bundled firmware remains 0.2.0. Open General to configure the microphone hotkey, or Firmware Installation to install over USB. Build and setup instructions are in the [application guide](https://github.com/vfasky/my-ai-audio/blob/go-voice-v0.7.0/gui/README.md). Live microphone/hotkey permissions, installed-update permission retention, nine-partition USB writes and interrupted-write recovery remain unverified.
+
 ## 0.6.2
 
 - USB firmware installation now supports two exact device layouts: the original five-partition template with its Recovery boot hook, and the measured nine-partition resource layout that keeps the vendor bootloader, pictures and audio. Only the existing factory application is written; identity, resources and Recovery storage stay in place. A refused preflight check attempts a normal reset.

@@ -6,6 +6,8 @@
 
 ## Unreleased
 
+- Publish go-voice 0.7.0 with the verified USB application installer, an optional Mac microphone hotkey and the upgraded updater. Refresh the website download links and release notes, and explain the optional microphone path and its permissions.
+
 - Fix USB firmware installation stopping with `RECOVERY_MARKER_MISSING` on a supported five-partition device. The desktop installer now uses the same bounded ROM application-write flow for both supported layouts, without requiring a bootloader log marker. It retains chip, security, flash-size, image-digest and partition checks, device checksum verification and reset; it preserves the existing bootloader, identity, resources and Recovery storage. The mini-program merged-firmware Recovery contract remains enforced.
 
 - Add a hold-to-talk hotkey to go-voice: hold Shift+Option alone anywhere in macOS to record with the Mac microphone, and release to recognize and insert with the chosen engine, refinement and capsule. The General page chooses another chord or turns it off; any other key pressed while holding cancels, so shortcuts with the same modifiers still work. Microphone is an optional grant on the Permissions page, asked for on first use. Verified by host and Swift tests only; recording and the event tap on a Mac remain unverified.
