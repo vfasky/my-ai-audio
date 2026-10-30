@@ -6,6 +6,8 @@
 
 ## Unreleased
 
+- Ship a default vocabulary with go-voice: 16 terms and 15 replacements (company and product names, work terms and their common misrecognitions). A first run without a `vocabulary.json` starts from them; an existing vocabulary file is never changed. Verified by host tests only.
+
 - Publish go-voice 0.7.0 with the verified USB application installer, an optional Mac microphone hotkey and the upgraded updater. Refresh the website download links and release notes, and explain the optional microphone path and its permissions.
 
 - Fix USB firmware installation stopping with `RECOVERY_MARKER_MISSING` on a supported five-partition device. The desktop installer now uses the same bounded ROM application-write flow for both supported layouts, without requiring a bootloader log marker. It retains chip, security, flash-size, image-digest and partition checks, device checksum verification and reset; it preserves the existing bootloader, identity, resources and Recovery storage. The mini-program merged-firmware Recovery contract remains enforced.

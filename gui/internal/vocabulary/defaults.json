@@ -1,0 +1,133 @@
+{
+  "format": "go-voice-vocabulary",
+  "version": 1,
+  "terms": [
+    {
+      "term": "伊智",
+      "weight": 50
+    },
+    {
+      "term": "伊智科技",
+      "weight": 50
+    },
+    {
+      "term": "私域宝",
+      "locked": true,
+      "weight": 50
+    },
+    {
+      "term": "伊的家",
+      "weight": 50
+    },
+    {
+      "term": "国哥",
+      "weight": 50
+    },
+    {
+      "term": "泽泽",
+      "weight": 50
+    },
+    {
+      "term": "流式",
+      "weight": 50
+    },
+    {
+      "term": "伊道云",
+      "weight": 50
+    },
+    {
+      "term": "review",
+      "weight": 50
+    },
+    {
+      "term": "子agnet",
+      "weight": 50
+    },
+    {
+      "term": "词库",
+      "weight": 50
+    },
+    {
+      "term": "WorkTony",
+      "weight": 50
+    },
+    {
+      "term": "骨架屏",
+      "weight": 50
+    },
+    {
+      "term": "美业",
+      "weight": 50
+    },
+    {
+      "term": "公域客服",
+      "weight": 50
+    },
+    {
+      "term": "会话",
+      "weight": 50
+    }
+  ],
+  "replacements": [
+    {
+      "from": "石玉宝",
+      "to": "私域宝"
+    },
+    {
+      "from": "食欲宝",
+      "to": "私域宝"
+    },
+    {
+      "from": "思域",
+      "to": "私域"
+    },
+    {
+      "from": "公寓",
+      "to": "公域"
+    },
+    {
+      "from": "透客",
+      "to": "拓客"
+    },
+    {
+      "from": "公域托客",
+      "to": "公域拓客"
+    },
+    {
+      "from": "一次科技",
+      "to": "伊智科技"
+    },
+    {
+      "from": "伊德加",
+      "to": "伊的家"
+    },
+    {
+      "from": "啧啧",
+      "to": "泽泽"
+    },
+    {
+      "from": "托k",
+      "to": "拓客"
+    },
+    {
+      "from": "伦宾",
+      "to": "伦冰"
+    },
+    {
+      "from": "果歌",
+      "to": "国哥"
+    },
+    {
+      "from": "一字科技",
+      "to": "伊智科技"
+    },
+    {
+      "from": "医治科技",
+      "to": "伊智科技"
+    },
+    {
+      "from": "绘画",
+      "to": "会话"
+    }
+  ]
+}

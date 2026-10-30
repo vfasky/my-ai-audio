@@ -337,9 +337,13 @@ func (a *application) initialize() {
 		base = ""
 	}
 	a.directory = filepath.Join(base, "MyGo-GoVoice")
-	a.store, e = vocabulary.Load(filepath.Join(a.directory, "vocabulary.json"))
+	vocabularyPath := filepath.Join(a.directory, "vocabulary.json")
+	a.store, e = vocabulary.Load(vocabularyPath)
 	if e != nil {
 		a.view.Snapshot.Status = "Vocabulary load failed"
+	} else if _, statErr := os.Stat(vocabularyPath); os.IsNotExist(statErr) {
+		// First run: start from the vocabulary that ships with the app.
+		a.store = vocabulary.Defaults()
 	}
 	if b, e := os.ReadFile(filepath.Join(a.directory, "settings.json")); e == nil && len(b) < 16384 {
 		var s settings
