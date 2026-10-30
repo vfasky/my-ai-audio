@@ -29,7 +29,7 @@
 
 - 仓库的 latest release 属于固件，所以桌面版使用独立的 tag 前缀。应用通过 GitHub API 查找最新一个已公开、非草稿、非预发布的 `go-voice-v*` release（未认证时每个地址每小时 60 次请求），读取 `update-darwin-arm64.json`，再下载其中列出的完整归档或差分包。
 - manifest 包含版本、发布说明、日期，以及归档和每个差分包的 URL、大小和 Ed25519 签名。应用先用内置公钥校验签名，再替换 `go-voice.app`；差分更新失败时改用完整归档。
-- MyGo 原生更新窗口（简体中文）每天在后台检查一次，展示发布说明，并提供“安装更新”“跳过这个版本”“稍后提醒我”。菜单栏 ›“检查更新…”会立即打开它。安装后“重新启动”走正常的 `OnBeforeQuit` 退出流程，新版本启动前各 helper 与固件安装进程都会停止。
+- MyGo 原生更新窗口（简体中文）在每次启动约 10 秒后进行后台检查，之后每天检查一次，展示发布说明，并提供“安装更新”“跳过这个版本”“稍后提醒我”。菜单栏 ›“检查更新…”会立即打开它。安装时先暂存已校验的更新。“重新启动”走正常的 `OnBeforeQuit` 退出流程，各 helper 与固件安装进程停止、应用退出后才替换 bundle，再通过 LaunchServices 启动新版本。
 - 只有正式版会更新。`build.sh` 和 `dev.sh` 生成的调试版从不读取更新密钥、不生成更新文件，使用“检查更新…”时会说明这一点。正式版必须能写入自身安装位置：管理员的 `/Applications` 或 `~/Applications`；否则菜单会说明它无法在该位置自行更新。
 - 应用未启用 App Sandbox，更新写出的 bundle 不带沙盒隔离标记，不需要修复用的 helper。
 
@@ -74,7 +74,7 @@
 
 1. 检查版本、两份 changelog 小节、分支、工作区、tag，以及该 release 是否已公开。还会检查签名身份、公证 profile 和更新密钥；密钥依次取自 `MYGO_UPDATER_PRIVATE_KEY`、钥匙串条目 `go-voice update signing key`、`~/Library/Application Support/mygo/update-keys/go-voice/mygo-update.key`。
 2. 运行 `./scripts/validate.sh`（`--skip-tests` 跳过）。
-3. 运行 `./scripts/build.sh --release`：以 release 模式构建各 helper，再执行 `mygo build -platform darwin/arm64 -o build/release -sign <Developer ID>`。MyGo 由内向外签名嵌套的 `BluetoothHelper`、`SpeechBridge`（使用 `entitlements.plist`）和 `FirmwareHelper`，最后签名应用，均启用 hardened runtime 和安全时间戳。随后它制作 `go-voice <版本> arm64.dmg` 并签名，提交 `notarytool` 等待结果，再把公证票据 staple 到磁盘映像和应用。最后它归档已 staple 的应用并签名归档，为最多三个已公开版本生成差分包，并写出 `update-darwin-arm64.json`。
+3. 运行 `./scripts/build.sh --release`：以 release 模式构建各 helper，再执行 `mygo build -platform darwin/arm64 -o build/release -sign <Developer ID>`。MyGo 由内向外签名嵌套的 `BluetoothHelper`、`SpeechBridge`（使用 `entitlements.plist`）和 `FirmwareHelper`，最后签名应用，均启用 hardened runtime 和安全时间戳。随后它制作 `go-voice-<版本>-arm64.dmg` 并签名，提交 `notarytool` 等待结果，再把公证票据 staple 到磁盘映像和应用。最后它归档已 staple 的应用并签名归档，为最多三个已公开版本生成差分包，并写出 `update-darwin-arm64.json`。
 4. 验证：macOS 兼容性；`codesign --verify --deep --strict`；应用和每个 helper 的 Developer ID 签发者、团队、hardened runtime 和时间戳；应用与磁盘映像的 `stapler validate` 和 `spctl`；从更新归档解出的应用的兼容性、签名与 staple。
 5. 把 `go-voice-<版本>-macOS-AppleSilicon.dmg`、归档、差分包、`SHA256SUMS.txt`、`notes.md` 和 manifest 复制到 `build/updates/<版本>/`。
 6. 确认后（`--yes` 跳过询问）推送附注 tag `go-voice-v<版本>`，创建不标记为 latest 的草稿 release，先上传其他文件，最后上传 manifest。

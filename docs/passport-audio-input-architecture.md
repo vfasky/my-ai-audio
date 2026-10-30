@@ -2,7 +2,7 @@
 
 # Go Voice system architecture
 
-AI Passport is the sole audio capture device. It streams microphone audio over BLE to the macOS application, which performs recognition, optional refinement, and text insertion. The Mac never opens its own microphone; audio and transcripts are not saved as history.
+AI Passport is the sole audio capture device. It streams microphone audio over BLE to the macOS application, which performs recognition, optional refinement, and text insertion. The Mac opens its own microphone only while the optional hold-to-talk hotkey is held, feeding the same pipeline; audio and transcripts are not saved as history.
 
 ```text
 AI Passport / ESP32-C3
@@ -50,7 +50,7 @@ TextInjector captures the foreground target at session start. It respects Access
 
 ## USB installation and protected storage
 
-The separate Rust FirmwareHelper uses pinned `espflash` and writes only the bundled application at `0x10000`, up to 3 MB. Preflight verifies image digest, chip, flash capacity and either of two exact device layouts before any erase/write: the original five-partition template (still requiring its permanent-Recovery hook), or the measured nine-partition resource layout (preserving its vendor bootloader). The packaged manifest keeps the template contract; the device table is never replaced. Sector erasure ends no later than `0x310000`. There is no erase-all, bootloader or partition-table write path. See the [helper contract](../gui/firmware-helper/README.md) for layout details.
+The separate Rust FirmwareHelper uses pinned `espflash` and writes only the bundled application at `0x10000`, up to 3 MB. Preflight verifies image digest, chip, flash capacity and either of two exact device layouts before any erase/write: the original five-partition template or the measured nine-partition resource layout. Both use the same USB ROM application-write flow, independently of the existing bootloader's Recovery marker. The packaged manifest keeps the template contract; the device table is never replaced. Sector erasure ends no later than `0x310000`. There is no erase-all, bootloader or partition-table write path. See the [helper contract](../gui/firmware-helper/README.md) for layout details.
 
 `cardid` at `0x356000`, permanent Recovery at `0x700000`, and the five-second UP-key bootloader hook are mandatory. The desktop app-only image and mini-program merged image serve different installation paths; see [Recovery compatibility](development/engineering/ble-recovery-compatibility.md).
 
@@ -58,6 +58,6 @@ The separate Rust FirmwareHelper uses pinned `espflash` and writes only the bund
 
 BLE V1 has no pairing, peer authentication or application-layer encryption. A persisted CoreBluetooth peripheral UUID supports selection and reconnects; it does not authenticate the device. The application labels this limitation. Authenticated transport is future work.
 
-Bluetooth, Speech Recognition and Accessibility permissions are required for the full workflow; Automation is optional because insertion can use CGEvent. No Mac microphone permission is requested. Settings and vocabulary persist locally; session audio and transcripts do not.
+Bluetooth, Speech Recognition and Accessibility permissions are required for the full workflow; Automation is optional because insertion can use CGEvent. The Mac Microphone grant is optional and only requested for the hotkey. Settings and vocabulary persist locally; session audio and transcripts do not.
 
 Build, host-test and device results are reported separately. Hardware recognition quality, sustained BLE behavior, permissions, insertion, current consumption and Recovery require the remaining checks in the [desktop acceptance record](../gui/docs/acceptance.md) and [firmware record](go-voice-firmware.md#validation).

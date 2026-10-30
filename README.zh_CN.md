@@ -6,7 +6,7 @@ AI 驱动的 macOS 语音输入。AI Passport 固件和基于 MyGo 的 `go-voice
 
 AI Passport / ESP32-C3 工牌是唯一音频采集端，连续把 ES8311 音频经 IMA-ADPCM / BLE 送到 Mac；基于 MyGo 构建的 `go-voice` 应用调用系统端侧 ASR，注入动态词库，使用 Apple 本地模型或用户明确选择的 OpenAI-compatible 服务润色，再把文字插入当前输入框。
 
-仓库按 Vokie 固件项目组织：根目录生成 ESP-IDF 固件；`gui/` 是独立 Go module 的 MyGo 技术栈 `go-voice` macOS 应用，负责配对、实时波形与帧诊断、词库、AI 润色、Speech 和跨应用插字。Mac 不使用自身麦克风，也不保存或回放工牌音频。
+仓库按 Vokie 固件项目组织：根目录生成 ESP-IDF 固件；`gui/` 是独立 Go module 的 MyGo 技术栈 `go-voice` macOS 应用，负责配对、实时波形与帧诊断、词库、AI 润色、Speech 和跨应用插字。只有按住可选的按住说话热键（默认 Shift+Option）时才使用 Mac 麦克风，音频不保存也不回放。
 
 ## 第一阶段固件
 
@@ -23,7 +23,7 @@ Go Voice 不再依赖 Vokie 桌面宿主。采集与文字输入需要实现 [Go
 
 `go-voice` 面向 macOS 26+ 和 Apple Silicon，基于 MyGo 构建，使用 Go Voice 自有 BLE UUID，不会自动连接扫描到的第一个设备。四页原生 UI 覆盖设备与本次语音、动态词库、AI 润色和安全 USB 固件安装；API key 仅存 macOS Keychain，本地模型失败不会静默切换云端。
 
-固件页使用签名的 Rust `FirmwareHelper`，底层固定为 `espflash` 4.6.0。它识别 ESP32-C3 原生 USB Serial/JTAG，采用 fail-closed 方式检查芯片、安全状态、Flash 容量、分区表、镜像摘要和永久 Recovery，只向 `0x10000` 写入随 App 提供的 factory 应用；不存在 erase-all、bootloader、分区表、NVS、PHY、`cardid` 或 Recovery 写入路径。
+固件页使用签名的 Rust `FirmwareHelper`，底层固定为 `espflash` 4.6.0。它识别 ESP32-C3 原生 USB Serial/JTAG，采用 fail-closed 方式检查芯片、安全状态、Flash 容量、分区表和镜像摘要，只向 `0x10000` 写入随 App 提供的 factory 应用；USB ROM 应用写入不依赖现有 Recovery 启动标记；不存在 erase-all、bootloader、分区表、NVS、PHY、`cardid` 或 Recovery 写入路径。
 
 ```bash
 # 在仓库根目录启动带签名的调试版，监听变化并自动重构建、重启：

@@ -48,10 +48,12 @@ Manifest fields are mandatory, unknown fields are rejected, and sizes/offsets/ty
 
 Before opening a port, the helper validates the manifest, input size, ESP magic byte, firmware SHA-256 and sector-rounded write boundary. It re-enumerates ports and accepts only `/dev/cu.*` with USB VID/PID `303a:1001`. It connects in ROM mode without uploading a stub and confirms chip, security status and independently detected 8 MiB flash. Unknown/nonzero security flags, any nonzero flash encryption counter, missing security response or secure download mode are refused conservatively.
 
-Preflight reads only `[0x8000,0x9000)` for the ESP-IDF partition table and `[0,0x8000)` for the bootloader. Every table needs a valid MD5 record, erased trailing bytes and zero partition flags. Device layouts are matched against two exact allowlists (entry order may differ):
+Preflight reads only `[0x8000,0x9000)` for the ESP-IDF partition table. Every table needs a valid MD5 record, erased trailing bytes and zero partition flags. Device layouts are matched against two exact allowlists (entry order may differ):
 
-- The original five-partition template from `partitions.csv`. Its bootloader must still contain the permanent-Recovery UP-key hook marker. Adding support for resource devices does not relax this existing check.
-- The measured nine-partition resource layout below. It keeps the vendor bootloader, so the template-specific log marker and a `recovery` table entry are not required. This does not certify the vendor's UP-key/Recovery behavior. Nothing at `0x700000` is read, erased or written.
+- The original five-partition template from `partitions.csv`.
+- The measured nine-partition resource layout below.
+
+Both layouts use the same ROM application-write flow, preserving their existing bootloader and Recovery storage. The template-specific bootloader log marker is not a prerequisite for USB writes. This installer does not check, restore or certify the device's UP-key/Recovery behavior. The packaged manifest and merged community firmware retain their separate Recovery contract. Nothing at `0x700000` is read, erased or written.
 
 | Name | Type/subtype | Offset | Size |
 | --- | --- | --- | --- |
@@ -69,6 +71,6 @@ Missing, duplicate, modified or additional partitions are refused, even with a v
 
 The sole mutation is `Flasher::write_bin_to_flash(0x10000, app, callbacks)` with verification enabled and skip disabled. Its `FlashMd5` comparison runs on device before reset, and `ProgressCallbacks` reports verification and restart stages. Padding is at most three `0xff` bytes; sector erasure stays inside factory. The library finalizes the ROM write and performs a hard reset; completion is sent only after it returns successfully. No erase-all, partition-table write, bootloader write, or provisioning action exists.
 
-Stable error codes include `INVALID_REQUEST`, `REQUEST_TOO_LARGE`, `INVALID_PATH`, `FILE_READ_FAILED`, `INVALID_FILE`, `INVALID_MANIFEST`, `INVALID_IMAGE`, `HASH_MISMATCH`, `INVALID_LAYOUT`, `SCAN_FAILED`, `PORT_NOT_ALLOWED`, `CONNECT_FAILED`, `CHIP_MISMATCH`, `SECURITY_UNAVAILABLE`, `UNSAFE_SECURITY_STATE`, `FLASH_SIZE_UNAVAILABLE`, `FLASH_SIZE_MISMATCH`, `UNSAFE_READ`, `PREFLIGHT_READ_UNAVAILABLE`, `RECOVERY_MARKER_MISSING`, `FLASH_FAILED`, `VERIFICATION_UNAVAILABLE`, and `OUTPUT_FAILED`.
+Stable error codes include `INVALID_REQUEST`, `REQUEST_TOO_LARGE`, `INVALID_PATH`, `FILE_READ_FAILED`, `INVALID_FILE`, `INVALID_MANIFEST`, `INVALID_IMAGE`, `HASH_MISMATCH`, `INVALID_LAYOUT`, `SCAN_FAILED`, `PORT_NOT_ALLOWED`, `CONNECT_FAILED`, `CHIP_MISMATCH`, `SECURITY_UNAVAILABLE`, `UNSAFE_SECURITY_STATE`, `FLASH_SIZE_UNAVAILABLE`, `FLASH_SIZE_MISMATCH`, `UNSAFE_READ`, `PREFLIGHT_READ_UNAVAILABLE`, `FLASH_FAILED`, `VERIFICATION_UNAVAILABLE`, and `OUTPUT_FAILED`.
 
-Host tests do not establish hardware acceptance. Real USB enumeration, ROM read support, security responses, write/erase behavior, checksum rejection, disconnection/power loss and UP-key recovery need device validation. The manifest is integrity metadata, not a signed authenticity proof; layout/marker checks do not cryptographically authenticate a physical board. The helper does not implement firmware signing or key provisioning.
+Host tests do not establish hardware acceptance. Real USB enumeration, ROM read support, security responses, write/erase behavior, checksum rejection, disconnection/power loss and UP-key recovery need device validation. The manifest is integrity metadata, not a signed authenticity proof; layout checks do not cryptographically authenticate a physical board. The helper does not implement firmware signing or key provisioning.

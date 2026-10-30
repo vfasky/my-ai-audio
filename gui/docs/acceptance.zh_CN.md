@@ -2,7 +2,17 @@
 
 # 实现与验收记录
 
-最近验证记录日期：2026-10-23。每个日期小节描述其当时测试的实现与应用包。USB 检查现覆盖枚举以及 bootloader/分区表只读诊断，安装器真实写入仍未验证；历史结果不能代替新发布构建的验证。
+最近验证记录日期：2026-10-30。每个日期小节描述其当时测试的实现与应用包。已通过随包 FirmwareHelper 验证五分区设备上的 USB 应用安装；历史结果不能代替新发布构建的验证。
+
+## USB ROM 应用安装（2026-10-30）
+
+Build：签名的调试应用与三个 helper PASS。Host tests：GUI 门禁（20 个 Bun 测试、15 个 Rust 测试、9 个 Swift 测试、Go 测试/vet、Clippy、固件资源、macOS 兼容性与签名）和仓库静态/主机检查 PASS。根完整门禁因缺少 ESP-IDF 5.5.3 环境停止；未重新构建固件。
+
+Device tests：使用新应用包中的 FirmwareHelper，通过 GUI 使用的同一套 NDJSON 扫描/安装协议验证 PASS。ESP32-C3 / 8 MiB 设备的分区表精确匹配五分区模板，没有预期的 bootloader 日志标记，且 Recovery 镜像头为擦除状态。随包 0.2.0 应用（1,162,848 字节，SHA-256 `30be20312ed0cd6e72935e6a96df47f4029fbafc267f960cb223ac7ae8b325ad`）写入 `0x10000`。helper 依次上报预检、写入、验证、重启阶段，最后返回 complete；设备端校验和复位成功。安装前后独立读取确认 bootloader 与分区表的 SHA-256 摘要相同。未读取设备身份内容。
+
+安装器不再将 bootloader 日志字符串作为 USB 安装前置条件。两种已知布局仍保留精确分区验证与 factory 擦除边界；随包 manifest 和社区合并镜像仍保留 Recovery 契约。本次操作不会修复缺失的 Recovery 功能。
+
+Unverified：九分区布局的真实 USB 安装、写入中断行为、原生界面安装按钮操作、UP 键/Recovery 行为，以及按键和音频验收。此前独立的直接 USB 测试另已观察到固件启动并广播 Go Voice。下方为历史验收记录。
 
 ## 两种设备布局验证（2026-10-23）
 
@@ -30,7 +40,7 @@ Rust、Go、Swift、固件打包和签名层的集成主机门禁现已通过。
 
 ## 已实现契约
 
-- 薄 Go 入口、独立 module、MyGo 0.5.5 原生 UI 和标准 debug 打包。正式版应用名称为 `go-voice`，bundle id 为 `yz.sh.mygo-go-voice`；本地构建为 `go-voice-debug` / `yz.sh.mygo-go-voice.debug`，每个 helper 标识也追加 `.debug`。BLE 产品身份仍为 Go Voice。
+- 薄 Go 入口、独立 module、MyGo 0.7.3 原生 UI 和标准 debug 打包。正式版应用名称为 `go-voice`，bundle id 为 `yz.sh.mygo-go-voice`；本地构建为 `go-voice-debug` / `yz.sh.mygo-go-voice.debug`，每个 helper 标识也追加 `.debug`。BLE 产品身份仍为 Go Voice。
 - 严格控制校验拒绝重复/未知键、尾随 JSON、非法 UTF-8、错误数字类型、不支持的格式、缺失必填字段和超长控制消息。Audio envelope 校验、64 分片组装、去重、确定性有界淘汰、独立 166B IMA-ADPCM、320 样本 PCM 与有界排序均为纯 Go。
 - 流处理有 75 帧早到缓存、80ms 缺口等待、累计 100 帧补静音上限、500ms 已声明尾帧等待、3 秒 stall 和 15000 帧/5 分钟上限。不保存音频历史即可计算 RMS、peak、32 个波形 bins、时长和收帧/缺帧/补帧/重复计数。
 - 协调器测试覆盖 start、重复 start、早到帧、Speech ready 前 release、finish、润色、插字确认、断线、取消、旧结果、接受超时、连续复用 PTT 序号 0/1 的多段会话，以及使用独立序号空间的按键事件。每个原生 Speech 请求使用不同于 BLE session ID 的宿主代次 ID。设备取消先清除当前请求，再发送原生取消。
@@ -38,7 +48,7 @@ Rust、Go、Swift、固件打包和签名层的集成主机门禁现已通过。
 - 真实 SpeechAnalyzer/SpeechTranscriber 接收 16kHz Int16 单声道 PCM，使用 volatile results 和每会话 contextual strings，准备/保留 zh-CN 模型，发送带会话身份的 partial/final/error/cancel 事件，从不打开 Mac 音频输入。helper 使用 `RunLoop.main.run()` 保持物理主线程存活，因为 Speech 框架不能依赖原主线程已退出的 dispatch main queue。Swift Package 使用已安装 SDK 的真实 API 编译。两个 helper 都以可读事件处理长连接 stdin；真实进程回归测试保持 stdin 打开并要求命令立即生效。
 - TextInjector 在 start 时捕获前台目标，检查辅助功能/Secure Input，处理修饰键，优先 System Events、失败使用 CGEvent；0.5 秒后仅在归属标记和 change count 均未变时恢复完整剪贴板快照。目标不存在或已变化则仅留剪贴板。
 - 词库持久化所有要求字段，去重，提供手动 CRUD 和锁定，拒绝 AI 删除/覆盖锁定词，注入 Top 100。润色默认使用新的本地 FoundationModels session，云端必须明确选择。模式为 off/names/light/structured，30 秒超时，空输出/错误/低忠实度回退最终 ASR 原文。远端 HTTPS 拒绝 URL 内嵌凭据和重定向，bearer 凭据仅从 Keychain 获取。
-- UI 不管理 helper 进程或 Speech 会话。应用组装层连接服务，并使用 `mygo.RunOnMain` 分发后台结果。本次音频/转写状态不持久化。不包含麦克风权限文案或 audio-input entitlement。
+- UI 不管理 helper 进程或 Speech 会话。应用组装层连接服务，并使用 `mygo.RunOnMain` 分发后台结果。本次音频/转写状态不持久化。麦克风权限文案和 audio-input entitlement 只用于按住说话热键；只在按住组合键期间打开输入设备。
 
 ## 自动验证证据
 

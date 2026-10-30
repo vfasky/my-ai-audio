@@ -13,6 +13,7 @@ import (
 	"github.com/vfasky/my-ai-audio/gui/internal/asr"
 	"github.com/vfasky/my-ai-audio/gui/internal/device"
 	"github.com/vfasky/my-ai-audio/gui/internal/firmware"
+	"github.com/vfasky/my-ai-audio/gui/internal/hotkey"
 	"github.com/vfasky/my-ai-audio/gui/internal/jev"
 	"github.com/vfasky/my-ai-audio/gui/internal/permission"
 	"github.com/vfasky/my-ai-audio/gui/internal/platform/bridge"
@@ -38,6 +39,9 @@ type settings struct {
 	ASR        asr.Config        `json:"asr"`
 	Jev        jev.Config        `json:"jev"`
 	Packs      wordlists.Config  `json:"vocabulary_packs"`
+	// Hotkey is the modifier chord held to record with the Mac microphone,
+	// or hotkey.Off.
+	Hotkey string `json:"hotkey"`
 }
 type application struct {
 	ctx               context.Context
@@ -345,6 +349,7 @@ func (a *application) initialize() {
 	}
 	a.config.ASR = asr.Normalize(a.config.ASR)
 	a.config.Jev = jev.Normalize(a.config.Jev)
+	a.config.Hotkey = hotkey.Normalize(a.config.Hotkey)
 	a.applyASR()
 	a.readLoginItem()
 	a.view.Actions = appui.Actions{
@@ -430,6 +435,7 @@ func (a *application) initialize() {
 			}
 		},
 		ConfigurePacks:   a.configurePacks,
+		SetHotkey:        a.setHotkey,
 		ExportVocabulary: a.exportVocabulary,
 		ConfigureASR:     a.configureASR,
 		TestASR:          a.testASR,
@@ -653,6 +659,7 @@ func (a *application) syncSession() {
 	s.Config = a.config.Refinement
 	s.ASR = a.config.ASR
 	s.Jev = a.config.Jev
+	s.Hotkey = a.config.Hotkey
 	s.CanCommit = c.CanCommit()
 	if c.Status != "" {
 		s.Status = c.Status
@@ -682,12 +689,7 @@ func (a *application) syncHUD() {
 	switch {
 	case c.Active && c.Phase != "inserting":
 		a.hudUntil = time.Time{}
-		if !a.hudShown {
-			d := mygo.Screen.DisplayNearestPoint(mygo.Screen.CursorScreenPoint())
-			a.hud.SetPosition(d.WorkArea.X+(d.WorkArea.Width-appui.HUDWidth)/2, d.WorkArea.Y+d.WorkArea.Height-appui.HUDHeight-8)
-			a.hud.ShowInactive()
-			a.hudShown = true
-		}
+		a.showHUD()
 		a.bindEscape(true)
 	case a.hudShown && c.Active:
 		a.hideHUD()
@@ -712,6 +714,28 @@ func (a *application) syncHUD() {
 		a.hud.Invalidate()
 	}
 }
+
+// showHUD shows the capsule on the display with the pointer.
+func (a *application) showHUD() {
+	if a.hud == nil || a.hudShown {
+		return
+	}
+	d := mygo.Screen.DisplayNearestPoint(mygo.Screen.CursorScreenPoint())
+	a.hud.SetPosition(d.WorkArea.X+(d.WorkArea.Width-appui.HUDWidth)/2, d.WorkArea.Y+d.WorkArea.Height-appui.HUDHeight-8)
+	a.hud.ShowInactive()
+	a.hudShown = true
+}
+
+// flashHUD shows why the hotkey did not start, for as long as a failed
+// session's reason.
+func (a *application) flashHUD(reason string) {
+	a.coordinator.Status = reason
+	a.view.Snapshot.Status = reason
+	a.hudUntil = time.Time{}
+	a.showHUD()
+	a.mark(paintSession)
+}
+
 func (a *application) hideHUD() {
 	a.bindEscape(false)
 	a.hudUntil = time.Time{}
@@ -755,6 +779,7 @@ func (a *application) startNative() {
 		a.sendBluetooth(map[string]any{"type": "set-preferred-device", "deviceId": a.config.Peripheral})
 	}
 	a.sendSpeech(map[string]any{"type": "warmup"})
+	a.sendSpeech(map[string]any{"type": "hotkey", "text": a.config.Hotkey})
 	a.queryPermissions()
 	go func() {
 		// Grants change in System Settings without telling the app: re-read
@@ -768,7 +793,8 @@ func (a *application) startNative() {
 			case <-ticker.C:
 				a.post(func() {
 					a.readLoginItem()
-					if len(a.permissions.Missing()) > 0 || a.permissions[permission.Automation] != permission.Granted {
+					micMissing := hotkey.Enabled(a.config.Hotkey) && a.permissions[permission.Microphone] != permission.Granted
+					if len(a.permissions.Missing()) > 0 || a.permissions[permission.Automation] != permission.Granted || micMissing {
 						a.queryPermissions()
 					}
 				})
@@ -985,6 +1011,9 @@ func (a *application) onPermission(e bridge.Event) {
 	if n == permission.Speech && st != permission.Granted && a.coordinator.Active && a.online == nil {
 		a.effects(a.coordinator.Cancel("语音识别未授权：请到“权限”页授权后重试"))
 	}
+	if n == permission.Microphone && (st == permission.Denied || st == permission.Restricted) && a.coordinator.Active && a.coordinator.Mic {
+		a.effects(a.coordinator.Cancel(micDenied))
+	}
 	if a.onboarded {
 		return
 	}
@@ -1067,6 +1096,22 @@ func (a *application) onSpeech(e bridge.Event) {
 	}
 	if e.Type == "disconnected" {
 		a.effects(a.coordinator.Cancel("Speech bridge exited"))
+		return
+	}
+	switch e.Type {
+	case "hotkey":
+		a.onHotkey(e.Text)
+		return
+	case "mic":
+		a.effects(a.coordinator.MicAudio(e.SessionID, e.Payload, time.Now()))
+		return
+	case "mic-end":
+		a.effects(a.coordinator.MicEnd(e.SessionID, time.Now()))
+		return
+	case "mic-error":
+		if a.coordinator.Active && a.coordinator.Mic && a.coordinator.Generation == e.SessionID {
+			a.effects(a.coordinator.Cancel("无法使用麦克风：请检查输入设备，或到“权限”页授权麦克风"))
+		}
 		return
 	}
 	if e.Type == "refined" && e.SessionID == a.coordinator.Generation && a.localReply != nil {
@@ -1217,6 +1262,10 @@ func (a *application) effects(effects []device.Effect) {
 			a.sendSpeech(map[string]any{"type": "cancel", "sessionId": e.ID})
 		case "refine":
 			a.refine(e)
+		case "mic_start":
+			a.sendSpeech(map[string]any{"type": "mic-start", "sessionId": e.ID})
+		case "mic_stop":
+			a.sendSpeech(map[string]any{"type": "mic-stop", "sessionId": e.ID})
 		case "insert":
 			// Never paste while the capsule could hold the keyboard.
 			a.hideHUD()
@@ -1344,6 +1393,58 @@ func (a *application) refine(e device.Effect) {
 			a.effects(a.coordinator.Speech("refinement_done", e.ID, out, time.Now()))
 		})
 	}()
+}
+
+const (
+	micDenied    = "麦克风未授权：请到“权限”页打开麦克风后重试"
+	micRequested = "请在系统弹窗中允许 go-voice 使用麦克风，然后再按住热键"
+)
+
+// onHotkey records with the Mac microphone while the chord is held:
+// SpeechBridge reports it held long enough (down), let go (up), or another
+// key pressed meanwhile (abort), which means a shortcut rather than speech.
+func (a *application) onHotkey(state string) {
+	c := &a.coordinator
+	now := time.Now()
+	switch state {
+	case "down":
+		if c.Active || !hotkey.Enabled(a.config.Hotkey) {
+			return
+		}
+		switch st := a.permissions[permission.Microphone]; st {
+		case permission.Denied, permission.Restricted:
+			a.flashHUD(micDenied)
+			return
+		case permission.Undetermined:
+			// The user asked for the microphone just now: this is the
+			// moment for the system's request, not in a running session.
+			a.sendSpeech(map[string]any{"type": "request-permission", "text": string(permission.Microphone)})
+			a.flashHUD(micRequested)
+			return
+		}
+		a.effects(c.MicStart(now))
+	case "up":
+		a.effects(c.MicRelease(now))
+	case "abort":
+		if c.MicHeld() {
+			a.effects(c.Cancel("已取消：按住热键时按下了其他键"))
+		}
+	}
+}
+
+// setHotkey saves the chord and hands it to SpeechBridge; turning it off
+// ends a microphone session.
+func (a *application) setHotkey(id string) {
+	a.config.Hotkey = hotkey.Normalize(id)
+	a.saveSettings()
+	a.sendSpeech(map[string]any{"type": "hotkey", "text": a.config.Hotkey})
+	if !hotkey.Enabled(a.config.Hotkey) && a.coordinator.Mic {
+		a.effects(a.coordinator.Cancel("已关闭麦克风热键"))
+	}
+	if hotkey.Enabled(a.config.Hotkey) {
+		a.queryPermissions()
+	}
+	a.refresh()
 }
 
 // applyASR gives an online engine time to connect, a little longer than its

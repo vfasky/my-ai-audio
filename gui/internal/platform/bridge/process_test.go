@@ -44,3 +44,34 @@ func TestPermissionEvents(t *testing.T) {
 		}
 	}
 }
+
+func TestMicrophoneAndHotkeyEvents(t *testing.T) {
+	frame := base64.StdEncoding.EncodeToString(make([]byte, MicFrame))
+	e, err := Parse([]byte(`{"type":"mic","sessionId":3,"sequence":0,"payloadBase64":"` + frame + `"}`))
+	if err != nil || len(e.Payload) != MicFrame || e.SessionID != 3 {
+		t.Fatal(err, e)
+	}
+	for _, text := range []string{"down", "up", "abort"} {
+		if e, err := Parse([]byte(`{"type":"hotkey","text":"` + text + `"}`)); err != nil || e.Text != text {
+			t.Fatal(text, err)
+		}
+	}
+	if e, err := Parse([]byte(`{"type":"mic-end","sessionId":3}`)); err != nil || e.SessionID != 3 {
+		t.Fatal(err)
+	}
+	short := base64.StdEncoding.EncodeToString(make([]byte, MicFrame-2))
+	for _, line := range []string{
+		`{"type":"mic","sessionId":3,"sequence":0,"payloadBase64":"` + short + `"}`,
+		`{"type":"mic","sequence":0,"payloadBase64":"` + frame + `"}`,
+		`{"type":"mic","sessionId":3,"sequence":15000,"payloadBase64":"` + frame + `"}`,
+		`{"type":"mic","sessionId":3,"sequence":0,"text":"x","payloadBase64":"` + frame + `"}`,
+		`{"type":"hotkey","text":"left"}`,
+		`{"type":"hotkey"}`,
+		`{"type":"mic-end"}`,
+		`{"type":"mic-error","message":"x"}`,
+	} {
+		if _, err := Parse([]byte(line)); err == nil {
+			t.Fatal("accepted", line)
+		}
+	}
+}

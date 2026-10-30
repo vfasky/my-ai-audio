@@ -6,7 +6,7 @@ AI-powered macOS voice input. The AI Passport firmware and MyGo-based `go-voice`
 
 The AI Passport / ESP32-C3 badge is the sole audio capture device. It continuously streams ES8311 audio to the Mac over IMA-ADPCM / BLE; the `go-voice` app, built with MyGo, runs system on-device ASR, injects dynamic vocabulary, refines text with Apple local models or an explicitly selected OpenAI-compatible service, and inserts it into the active input field.
 
-The repository follows the Vokie firmware project layout: the root builds ESP-IDF firmware; `gui/` is an independent Go module containing the MyGo-based `go-voice` macOS application for pairing, live waveform/frame diagnostics, vocabulary, AI refinement, Speech, and cross-application insertion. The Mac microphone is never used, and badge audio is neither saved nor replayed.
+The repository follows the Vokie firmware project layout: the root builds ESP-IDF firmware; `gui/` is an independent Go module containing the MyGo-based `go-voice` macOS application for pairing, live waveform/frame diagnostics, vocabulary, AI refinement, Speech, and cross-application insertion. The Mac microphone is used only while the optional hold-to-talk hotkey (Shift+Option by default) is held, and audio is neither saved nor replayed.
 
 ## Phase-one firmware
 
@@ -23,7 +23,7 @@ Go Voice no longer requires the Vokie desktop host. A compatible host using the 
 
 `go-voice` targets macOS 26+ on Apple Silicon, is built with MyGo, uses the product-owned Go Voice BLE UUIDs, and never auto-connects the first discovered device. Its four native pages cover device/current speech, dynamic vocabulary, AI refinement, and safe USB firmware installation. API keys live only in macOS Keychain, and local-model failures never silently switch to cloud processing.
 
-The firmware page uses a signed Rust `FirmwareHelper` backed by pinned `espflash` 4.6.0. It recognizes the ESP32-C3 native USB Serial/JTAG port, performs fail-closed chip, security, flash-size, partition-table, image-hash and permanent-Recovery checks, and writes only the bundled factory application at `0x10000`. It has no erase-all, bootloader, partition-table, NVS, PHY, `cardid`, or Recovery write path.
+The firmware page uses a signed Rust `FirmwareHelper` backed by pinned `espflash` 4.6.0. It recognizes the ESP32-C3 native USB Serial/JTAG port, performs fail-closed chip, security, flash-size, partition-table and image-hash checks, and writes only the bundled factory application at `0x10000`. It uses USB ROM application writes independently of the existing Recovery boot marker, and has no erase-all, bootloader, partition-table, NVS, PHY, `cardid`, or Recovery write path.
 
 ```bash
 # From the repository root: signed debug app with watch/rebuild/restart

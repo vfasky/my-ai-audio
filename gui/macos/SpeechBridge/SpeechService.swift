@@ -8,6 +8,8 @@ import Speech
 
 @MainActor final class SpeechService {
   let injector = TextInjector()
+  lazy var microphone = Microphone(emit: emit)
+  lazy var hotkey = HotkeyMonitor(emit: emit)
   var identity = SessionGuard()
   var analyzer: SpeechAnalyzer?
   var continuation: AsyncStream<AnalyzerInput>.Continuation?
@@ -40,6 +42,7 @@ import Speech
     permission("speech", Self.speechState(SFSpeechRecognizer.authorizationStatus()))
     permission("accessibility", AXIsProcessTrusted() ? "granted" : "undetermined")
     permission("automation", await automationState(ask: false))
+    permission("microphone", Microphone.state())
   }
   /// Shows the system request; only the onboarding sends this, never a session.
   func requestPermission(_ name: String) async {
@@ -54,6 +57,8 @@ import Speech
       permission("accessibility", AXIsProcessTrustedWithOptions(options) ? "granted" : "undetermined")
     case "automation":
       permission("automation", await automationState(ask: true))
+    case "microphone":
+      permission("microphone", await Microphone.request())
     default: break
     }
   }
@@ -156,6 +161,17 @@ import Speech
             self.event("final", id, self.committed)
           } catch { self?.event("error", id) }
         }
+      case "hotkey": hotkey.configure(c.text ?? "off")
+      case "mic-start":
+        guard identity.matches(id) else { return }
+        guard microphone.start(id) else {
+          permission("microphone", Microphone.state())
+          emit(["type": "mic-error", "sessionId": id])
+          return
+        }
+      case "mic-stop":
+        guard identity.matches(id) else { return }
+        microphone.stop()
       case "cancel": await cancel(id)
       case "refine":
         guard identity.matches(id) else { return }
@@ -207,6 +223,7 @@ import Speech
   func cancel(_ id: UInt32, notify: Bool = true) async {
     guard identity.matches(id) else { return }
     identity.cancel(id)
+    microphone.stop(notify: false)
     continuation?.finish()
     continuation = nil
     workTask?.cancel()

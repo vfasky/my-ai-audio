@@ -2,6 +2,7 @@
 package device
 
 import (
+	"encoding/binary"
 	"github.com/vfasky/my-ai-audio/gui/internal/protocol"
 	"time"
 )
@@ -28,6 +29,18 @@ type Coordinator struct {
 	buttons                            map[uint32]bool
 	buttonOrder                        []uint32
 	wire                               uint32
+	// idle is the phase between sessions while no device is ready: empty
+	// before the first connection, "disconnected" after one.
+	idle string
+	// A session recorded by the Mac microphone: Mic marks it, micOpen
+	// accepts its audio, released is when the hotkey was let go, micDone
+	// asks consume to finish it, micSeq numbers its frames and lastMic is
+	// when the last one came.
+	Mic              bool
+	micOpen, micDone bool
+	released         time.Time
+	lastMic          time.Time
+	micSeq           uint32
 	// StartTimeout bounds the wait for the recognizer's ready, 1.2 s when
 	// zero; the audio meanwhile is buffered.
 	StartTimeout time.Duration
@@ -48,19 +61,129 @@ func (c *Coordinator) earlyFrames() int {
 	return max(75, int(c.startTimeout()/(20*time.Millisecond)))
 }
 
-func (c *Coordinator) state(state string) Effect { return Effect{Type: "host_state", State: state} }
+// states tells the device its state; a microphone session leaves the
+// device alone.
+func (c *Coordinator) states(states ...string) []Effect {
+	if c.Mic {
+		return nil
+	}
+	out := make([]Effect, len(states))
+	for i, s := range states {
+		out[i] = Effect{Type: "host_state", State: s}
+	}
+	return out
+}
+
+// idlePhase is the phase once a session ends.
+func (c *Coordinator) idlePhase() string {
+	if c.Ready {
+		return "ready"
+	}
+	return c.idle
+}
+
 func (c *Coordinator) Cancel(reason string) []Effect {
 	if !c.Active {
 		return nil
 	}
 	id := c.Generation
+	out := append([]Effect{{Type: "cancel", ID: id}}, c.states("error", "ready")...)
 	c.Active = false
-	c.Phase = "ready"
+	c.Phase = c.idlePhase()
 	c.Status = reason
 	c.Stream = nil
 	c.buffer = nil
 	c.accepted = false
-	return []Effect{{Type: "cancel", ID: id}, c.state("error"), c.state("ready")}
+	c.Mic, c.micOpen, c.micDone = false, false, false
+	return out
+}
+
+// begin resets the state of a new session.
+func (c *Coordinator) begin(now time.Time) {
+	c.Generation++
+	c.Active = true
+	c.Phase = "starting"
+	c.started = now
+	c.processing = time.Time{}
+	c.Status = ""
+	c.accepted = false
+	c.buffer = nil
+	c.Partial = ""
+	c.Original = ""
+	c.Refined = ""
+	c.Meter = protocol.Meter{}
+	c.Stream = nil
+	c.Mic, c.micOpen, c.micDone = false, false, false
+}
+
+// MicStart begins a session that the Mac microphone records while the
+// hotkey is held. It needs no device.
+func (c *Coordinator) MicStart(now time.Time) []Effect {
+	if c.Active {
+		return nil
+	}
+	c.begin(now)
+	c.Mic, c.micOpen = true, true
+	c.released = time.Time{}
+	c.lastMic = now
+	c.micSeq = 0
+	return []Effect{{Type: "start", ID: c.Generation}, {Type: "mic_start", ID: c.Generation}}
+}
+
+// MicHeld reports whether a microphone session records with the hotkey
+// still held.
+func (c *Coordinator) MicHeld() bool {
+	return c.Active && c.Mic && c.micOpen && c.released.IsZero()
+}
+
+// MicRelease is the hotkey let go: the microphone stops, and MicEnd, or a
+// second without it, finishes the session.
+func (c *Coordinator) MicRelease(now time.Time) []Effect {
+	if !c.Active || !c.Mic || !c.micOpen || !c.released.IsZero() {
+		return nil
+	}
+	c.released = now
+	c.Phase = "tail"
+	return []Effect{{Type: "mic_stop", ID: c.Generation}}
+}
+
+// MicEnd is the microphone of session id stopped, after its last frame.
+func (c *Coordinator) MicEnd(id uint32, now time.Time) []Effect {
+	if !c.Active || !c.Mic || !c.micOpen || id != c.Generation {
+		return nil
+	}
+	return c.endMic(now)
+}
+
+// MicAudio takes a 20 ms frame of 16 kHz signed 16-bit little-endian mono
+// PCM from the microphone of session id. At the frame limit of a session
+// the recording stops as if the hotkey were let go.
+func (c *Coordinator) MicAudio(id uint32, pcm []byte, now time.Time) []Effect {
+	if !c.Active || !c.Mic || !c.micOpen || id != c.Generation || len(pcm) != protocol.Samples*2 {
+		return nil
+	}
+	p := protocol.PCM{Sequence: c.micSeq}
+	for i := range p.Samples {
+		p.Samples[i] = int16(binary.LittleEndian.Uint16(pcm[i*2:]))
+	}
+	c.micSeq++
+	c.lastMic = now
+	c.Meter.Add(p)
+	out := c.consume([]protocol.PCM{p}, now)
+	if c.Active && c.micOpen && c.micSeq >= protocol.MaxFrames {
+		stop := c.MicRelease(now)
+		out = append(append(out, stop...), c.endMic(now)...)
+	}
+	return out
+}
+
+// endMic closes the recording; consume finishes the session once the
+// recognizer has taken the buffered audio.
+func (c *Coordinator) endMic(now time.Time) []Effect {
+	c.micOpen = false
+	c.micDone = true
+	c.Phase = "tail"
+	return c.consume(nil, now)
 }
 
 // CanCommit reports whether Commit would insert now: while refinement runs,
@@ -79,14 +202,22 @@ func (c *Coordinator) Commit() []Effect {
 	c.Phase = "inserting"
 	return []Effect{{Type: "insert", ID: c.Generation, Text: c.Original}}
 }
+
+// Disconnect forgets the device. A microphone session goes on without it.
 func (c *Coordinator) Disconnect() []Effect {
-	effects := c.Cancel("Disconnected; transcript not inserted")
+	var effects []Effect
+	if !c.Mic {
+		effects = c.Cancel("Disconnected; transcript not inserted")
+	}
 	c.Ready = false
 	c.seen = nil
 	c.order = nil
 	c.buttons = nil
 	c.buttonOrder = nil
-	c.Phase = "disconnected"
+	c.idle = "disconnected"
+	if !c.Active {
+		c.Phase = c.idle
+	}
 	return effects
 }
 func (c *Coordinator) Control(v protocol.Control, now time.Time) []Effect {
@@ -128,21 +259,10 @@ func (c *Coordinator) Control(v protocol.Control, now time.Time) []Effect {
 			delete(c.seen, c.order[0])
 			c.order = c.order[1:]
 		}
-		c.Generation++
-		c.Active = true
+		c.begin(now)
 		c.wire = v.SessionID
 		c.Stream = protocol.NewStream(v.SessionID, now)
-		c.Phase = "starting"
-		c.started = now
-		c.processing = time.Time{}
-		c.Status = ""
-		c.accepted = false
-		c.buffer = nil
-		c.Partial = ""
-		c.Original = ""
-		c.Refined = ""
-		c.Meter = protocol.Meter{}
-		return []Effect{{Type: "start", ID: c.Generation}, c.state("recording")}
+		return append([]Effect{{Type: "start", ID: c.Generation}}, c.states("recording")...)
 	case "ptt_up":
 		if !c.Active || c.Stream == nil || v.SessionID != c.wire {
 			return nil
@@ -195,6 +315,14 @@ func (c *Coordinator) Tick(now time.Time) []Effect {
 	if !c.processing.IsZero() && now.Sub(c.processing) >= 60*time.Second {
 		return c.Cancel("Processing timeout")
 	}
+	if c.Mic && c.micOpen {
+		if !c.released.IsZero() && now.Sub(c.released) >= time.Second {
+			return c.endMic(now)
+		}
+		if now.Sub(c.lastMic) >= 3*time.Second {
+			return c.Cancel("麦克风连续 3 秒没有音频：请检查输入设备")
+		}
+	}
 	if c.Stream == nil {
 		return nil
 	}
@@ -219,11 +347,17 @@ func (c *Coordinator) consume(frames []protocol.PCM, now time.Time) []Effect {
 	for _, p := range frames {
 		out = append(out, Effect{Type: "pcm", ID: c.Generation, Sequence: p.Sequence, PCM: protocol.PCMBytes(p.Samples)})
 	}
+	done := c.micDone
+	c.micDone = false
 	if c.Stream != nil && c.Stream.Done {
 		c.Stream = nil
+		done = true
+	}
+	if done {
 		c.Phase = "finalizing"
 		c.processing = now
-		out = append(out, Effect{Type: "finish", ID: c.Generation}, c.state("processing"))
+		out = append(out, Effect{Type: "finish", ID: c.Generation})
+		out = append(out, c.states("processing")...)
 	}
 	return out
 }
@@ -238,7 +372,9 @@ func (c *Coordinator) Speech(kind string, id uint32, text string, now time.Time)
 		}
 		c.accepted = true
 		c.processing = time.Time{}
-		c.Phase = "recording"
+		if c.Phase == "starting" {
+			c.Phase = "recording"
+		}
 		frames := c.buffer
 		c.buffer = nil
 		return c.consume(frames, now)
@@ -265,10 +401,12 @@ func (c *Coordinator) Speech(kind string, id uint32, text string, now time.Time)
 		if c.Phase != "inserting" {
 			return nil
 		}
+		out := c.states("success", "ready")
 		c.Active = false
-		c.Phase = "ready"
+		c.Mic = false
+		c.Phase = c.idlePhase()
 		c.Status = text
-		return []Effect{c.state("success"), c.state("ready")}
+		return out
 	case "error", "cancelled":
 		return c.Cancel("Speech cancelled or unavailable")
 	}

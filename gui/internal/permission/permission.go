@@ -10,6 +10,8 @@ const (
 	Speech        Name = "speech"
 	Accessibility Name = "accessibility"
 	Automation    Name = "automation"
+	// Microphone is the Mac's own microphone, used only by the hotkey.
+	Microphone Name = "microphone"
 )
 
 const (
@@ -23,13 +25,13 @@ const (
 )
 
 // Names lists the grants in the order the onboarding asks for them.
-var Names = []Name{Bluetooth, Speech, Accessibility, Automation}
+var Names = []Name{Bluetooth, Speech, Accessibility, Automation, Microphone}
 
 // Parse validates a helper report; anything else is rejected.
 func Parse(name, state string) (Name, State, bool) {
 	n := Name(name)
 	switch n {
-	case Bluetooth, Speech, Accessibility, Automation:
+	case Bluetooth, Speech, Accessibility, Automation, Microphone:
 	default:
 		return "", "", false
 	}
@@ -44,8 +46,9 @@ func Parse(name, state string) (Name, State, bool) {
 
 // Required reports whether a session cannot work as designed without the
 // grant. Automation is optional: without it insertion falls back to posting
-// Command-V, which Accessibility covers.
-func Required(n Name) bool { return n != Automation }
+// Command-V, which Accessibility covers. Microphone is optional: only the
+// hotkey records with it.
+func Required(n Name) bool { return n != Automation && n != Microphone }
 
 // Set holds the latest known state of every grant.
 type Set map[Name]State
@@ -72,6 +75,7 @@ func SettingsURL(n Name) string {
 		Speech:        "Privacy_SpeechRecognition",
 		Accessibility: "Privacy_Accessibility",
 		Automation:    "Privacy_Automation",
+		Microphone:    "Privacy_Microphone",
 	}[n]
 	return "x-apple.systempreferences:com.apple.preference.security?" + pane
 }
@@ -82,15 +86,17 @@ func Title(n Name) string {
 		Speech:        "语音识别",
 		Accessibility: "辅助功能",
 		Automation:    "自动化（System Events）",
+		Microphone:    "麦克风",
 	}[n]
 }
 
 func Purpose(n Name) string {
 	return map[Name]string{
 		Bluetooth:     "连接你选择的 FoloToy AI Passport 并接收语音音频。",
-		Speech:        "在本机把收到的音频转写为文字。不使用 Mac 麦克风。",
+		Speech:        "在本机把收到的音频转写为文字。",
 		Accessibility: "把最终文字粘贴到你选择的应用；未授权时文字仅保留在剪贴板。",
 		Automation:    "可选。通过 System Events 粘贴更稳妥；未授权时改用辅助功能按键粘贴。",
+		Microphone:    "可选。按住热键时用 Mac 麦克风录音，松开后识别；不用热键时不需要。",
 	}[n]
 }
 

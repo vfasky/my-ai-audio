@@ -24,7 +24,10 @@ func TestMissingIsOrderedAndSkipsOptionalAutomation(t *testing.T) {
 	}
 	s[Speech], s[Accessibility] = Granted, Granted
 	if len(s.Missing()) != 0 {
-		t.Fatal("automation must stay optional")
+		t.Fatal("automation and microphone must stay optional")
+	}
+	if Required(Microphone) {
+		t.Fatal("microphone is only for the hotkey")
 	}
 }
 

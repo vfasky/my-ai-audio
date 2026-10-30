@@ -66,9 +66,9 @@ impl<W: Write> ProgressCallbacks for Callbacks<'_, W> {
     }
 }
 
-// Only two preflight regions are readable. Cardid contents are never requested.
+// Only the partition table is readable. Cardid contents are never requested.
 fn read_preflight(flasher: &mut Flasher, offset: u32, size: u32) -> Result<Vec<u8>> {
-    if !matches!((offset, size), (0x8000, 0x1000) | (0, 0x8000)) {
+    if (offset, size) != (0x8000, 0x1000) {
         return Err(Failure(
             "UNSAFE_READ",
             "Read outside approved preflight regions",
@@ -165,10 +165,10 @@ fn install(
             ));
         }
         let actual = parse_partition_table(&read_preflight(&mut flasher, 0x8000, 0x1000)?)?;
-        let bootloader = read_preflight(&mut flasher, 0, 0x8000)?;
         // The manifest describes the packaged app, not a partition table to
-        // install. Match either known device layout and preserve it in place.
-        let plan = plan_app_write(&actual, &bootloader, manifest.app_size)?;
+        // install. USB ROM writes need only the validated factory slot; the
+        // existing bootloader and Recovery are preserved without modification.
+        let plan = plan_app_write(&actual, manifest.app_size)?;
         progress(out, Stage::Preflight, 100, "Device safety checks passed")?;
         Ok(plan)
     })();

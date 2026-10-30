@@ -22,7 +22,8 @@
       "LSUIElement": true,
       "NSBluetoothAlwaysUsageDescription": "Connect to your selected FoloToy AI Passport to receive voice audio.",
       "NSSpeechRecognitionUsageDescription": "Transcribe audio received from your FoloToy AI Passport on this Mac.",
-      "NSAppleEventsUsageDescription": "Insert your completed dictation into the application you selected."
+      "NSAppleEventsUsageDescription": "Insert your completed dictation into the application you selected.",
+      "NSMicrophoneUsageDescription": "Record your voice with the Mac microphone only while you hold the go-voice hotkey."
     }
   }
 }

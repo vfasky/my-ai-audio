@@ -106,7 +106,7 @@ step 'Building, signing and notarizing'
 MYGO_SIGN_IDENTITY="$identity" ./scripts/build.sh --release
 out=build/release/darwin-arm64
 app="$out/go-voice.app"
-dmg="$out/go-voice $version arm64.dmg"
+dmg="$out/go-voice-$version-arm64.dmg"
 archive="$out/go-voice-$version-darwin-arm64.tar.gz"
 manifest="$out/update-darwin-arm64.json"
 for file in "$app" "$dmg" "$archive" "$manifest"; do

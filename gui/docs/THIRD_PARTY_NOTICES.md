@@ -7,10 +7,11 @@ MyGo is an independently implemented Go Voice desktop host. The Go Voice artwork
 | Source | Use | License / notice |
 | --- | --- | --- |
 | FoloToy AI Passport and the imported Vokie reference at `ce26ea043251102155e54bc9503eb8133d5cafa8` | Bluetooth helper adapted from the upstream Vokie plugin's `AiPassportHelper.swift`; ADPCM and session behavior ported from its worker. The standalone plugin is no longer bundled | MIT, Copyright (c) 2026 FoloToy; full notice in `licenses/FoloToy-MIT.txt` |
-| MyGo v0.5.5 | Native application, controls, packaging | MIT, Copyright (c) 2026 MyGo contributors; `licenses/MyGo-MIT.txt` |
+| MyGo v0.7.3 | Native application, controls, packaging | MIT, Copyright (c) 2026 MyGo contributors; `licenses/MyGo-MIT.txt` |
 | purego v0.11.1 | Security / CoreFoundation bindings and MyGo dependency | Apache-2.0; `licenses/purego-Apache-2.0.txt` |
 | go-text/typesetting v0.3.5 | MyGo text layout dependency | Retained original LICENSE and HarfBuzz notice in `licenses/` |
 | golang.org/x/image v0.46.0 | MyGo image dependency | BSD; `licenses/x-image-BSD.txt` |
+| golang.org/x/net v0.59.0 | MyGo network dependency | BSD; `licenses/x-net-BSD.txt` |
 | golang.org/x/text v0.43.0 | MyGo locale (i18n) dependency | BSD; `licenses/x-text-BSD.txt` |
 | go-pinyin v0.21.0, <https://github.com/mozillazg/go-pinyin> | Pinyin readings that find homophones of vocabulary terms for refinement | MIT, Copyright (c) 2016 mozillazg; `licenses/go-pinyin-MIT.txt` |
 | gojieba v1.4.7, <https://github.com/yanyiwu/gojieba>, with bundled CppJieba, limonp and dictionaries | Local Chinese word boundaries and a compiled 96,336-term common-word correction pack | MIT; upstream notices in `licenses/gojieba-MIT.txt`, `licenses/cppjieba-MIT.txt` and `licenses/limonp-MIT.txt` |

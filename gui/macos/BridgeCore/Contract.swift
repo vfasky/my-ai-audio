@@ -15,11 +15,13 @@ public struct Command: Decodable {
     guard
       [
         "warmup", "begin", "start", "pcm", "finish", "cancel", "refine", "insert", "enter",
-        "delete", "clear", "ping", "shutdown", "permissions", "request-permission",
+        "delete", "clear", "ping", "shutdown", "permissions", "request-permission", "hotkey",
+        "mic-start", "mic-stop",
       ].contains(type), (text?.utf8.count ?? 0) <= 12000, (terms?.count ?? 0) <= 100,
       terms?.allSatisfy({ $0.utf8.count <= 256 }) ?? true
     else { throw BridgeError.invalid }
-    if ["begin", "start", "pcm", "finish", "cancel", "refine", "insert"].contains(type),
+    if ["begin", "start", "pcm", "finish", "cancel", "refine", "insert", "mic-start", "mic-stop"]
+      .contains(type),
       sessionId == nil
     {
       throw BridgeError.invalid
@@ -27,6 +29,7 @@ public struct Command: Decodable {
     if type == "request-permission", !Permission.speechNames.contains(text ?? "") {
       throw BridgeError.invalid
     }
+    if type == "hotkey", !Modifiers.names.contains(text ?? "") { throw BridgeError.invalid }
   }
   public func pcm() throws -> Data {
     guard let value = payloadBase64, value.count == 856, let data = Data(base64Encoded: value),

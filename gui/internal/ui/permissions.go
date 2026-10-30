@@ -16,6 +16,7 @@ var permissionIcons = map[permission.Name]*ui.SVG{
 	permission.Speech:        iconWave,
 	permission.Accessibility: iconCursor,
 	permission.Automation:    iconSparkle,
+	permission.Microphone:    iconWave,
 }
 
 func permissionTone(s permission.State) (fg, bg ui.Color) {
@@ -78,9 +79,13 @@ func (v *View) permissions(c *ui.Context) {
 		}
 	})
 	group(c, "optional", "可选", nil, func() {
-		v.permissionRow(c, permission.Automation, s[permission.Automation])
+		for _, n := range permission.Names {
+			if !permission.Required(n) {
+				v.permissionRow(c, n, s[n])
+			}
+		}
 	})
-	notice(c, "permission-note", "辅助功能与自动化需要在系统设置中打开 go-voice 的开关。应用不使用 Mac 麦克风，也不会申请麦克风权限。", false)
+	notice(c, "permission-note", "辅助功能与自动化需要在系统设置中打开 go-voice 的开关。只有按住麦克风热键时才会打开 Mac 麦克风；关闭热键后不需要麦克风权限。", false)
 }
 
 func (v *View) permissionRow(c *ui.Context, n permission.Name, st permission.State) {

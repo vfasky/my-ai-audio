@@ -107,6 +107,56 @@ func TestSpeechWithoutGrantEndsSessionWithReason(t *testing.T) {
 	}
 }
 
+func TestHotkeyRecordsWithMicrophoneUntilReleased(t *testing.T) {
+	a := &application{permissions: permission.Set{permission.Microphone: permission.Granted}, onboarded: true, config: settings{Hotkey: "shift+option"}}
+	a.onSpeech(bridge.Event{Type: "hotkey", Text: "down"})
+	c := &a.coordinator
+	if !c.Active || !c.Mic || c.Phase != "starting" {
+		t.Fatalf("start: %+v", c.Phase)
+	}
+	id := c.Generation
+	a.onSpeech(bridge.Event{Type: "ready", SessionID: id})
+	a.onSpeech(bridge.Event{Type: "mic", SessionID: id, Payload: make([]byte, bridge.MicFrame)})
+	if c.Meter.Frames != 1 || c.Phase != "recording" {
+		t.Fatalf("frames %d phase %s", c.Meter.Frames, c.Phase)
+	}
+	a.onSpeech(bridge.Event{Type: "hotkey", Text: "up"})
+	a.onSpeech(bridge.Event{Type: "mic-end", SessionID: id})
+	if c.Phase != "finalizing" {
+		t.Fatalf("finish: %s", c.Phase)
+	}
+	// A second chord during the session is ignored.
+	a.onSpeech(bridge.Event{Type: "hotkey", Text: "down"})
+	if c.Generation != id {
+		t.Fatal("second session started")
+	}
+}
+
+func TestHotkeyAbortAndMissingMicrophone(t *testing.T) {
+	a := &application{permissions: permission.Set{permission.Microphone: permission.Granted}, onboarded: true, config: settings{Hotkey: "shift+option"}}
+	a.onSpeech(bridge.Event{Type: "hotkey", Text: "down"})
+	a.onSpeech(bridge.Event{Type: "hotkey", Text: "abort"})
+	if a.coordinator.Active || !strings.Contains(a.coordinator.Status, "其他键") {
+		t.Fatalf("abort: %v %q", a.coordinator.Active, a.coordinator.Status)
+	}
+	a.permissions[permission.Microphone] = permission.Denied
+	a.onSpeech(bridge.Event{Type: "hotkey", Text: "down"})
+	if a.coordinator.Active || a.coordinator.Status != micDenied {
+		t.Fatalf("denied: %q", a.coordinator.Status)
+	}
+	a.permissions[permission.Microphone] = permission.Undetermined
+	a.onSpeech(bridge.Event{Type: "hotkey", Text: "down"})
+	if a.coordinator.Active || a.coordinator.Status != micRequested {
+		t.Fatalf("undetermined: %q", a.coordinator.Status)
+	}
+	a.permissions[permission.Microphone] = permission.Granted
+	a.config.Hotkey = "off"
+	a.onSpeech(bridge.Event{Type: "hotkey", Text: "down"})
+	if a.coordinator.Active {
+		t.Fatal("hotkey off")
+	}
+}
+
 func TestUpdatesUnavailableDetail(t *testing.T) {
 	for _, development := range []bool{true, false} {
 		if got := updatesUnavailableDetail("", development); !strings.Contains(got, "开发版") {

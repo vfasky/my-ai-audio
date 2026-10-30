@@ -2,7 +2,7 @@
 
 # Go Voice 系统架构
 
-AI Passport 是唯一音频采集端，通过 BLE 将麦克风音频连续送到 macOS 应用，由 Mac 识别、按需润色并插入文字。Mac 不开启自身麦克风，音频与转录不保存为历史记录。
+AI Passport 是唯一音频采集端，通过 BLE 将麦克风音频连续送到 macOS 应用，由 Mac 识别、按需润色并插入文字。只有按住可选的按住说话热键时，Mac 才开启自身麦克风并送入同一流程；音频与转录不保存为历史记录。
 
 ```text
 AI Passport / ESP32-C3
@@ -50,7 +50,7 @@ TextInjector 在会话开始时捕获前台目标，检查辅助功能与 Secure
 
 ## USB 安装与保护存储
 
-独立 Rust FirmwareHelper 使用固定版本 `espflash`，仅向 `0x10000` 写入随应用提供的镜像，最大 3 MB。任何擦写前，预检验证镜像摘要、芯片、Flash 容量，并精确匹配两种设备布局之一：原有五分区模板（仍要求永久 Recovery hook），或实测九分区资源布局（保留原厂 bootloader）。随包 manifest 保持模板契约，绝不替换设备分区表；扇区擦除终点不超过 `0x310000`。不提供整片擦除、bootloader 或分区表写入路径。布局细节见 [helper 契约](../gui/firmware-helper/README.zh_CN.md)。
+独立 Rust FirmwareHelper 使用固定版本 `espflash`，仅向 `0x10000` 写入随应用提供的镜像，最大 3 MB。任何擦写前，预检验证镜像摘要、芯片、Flash 容量，并精确匹配两种设备布局之一：原有五分区模板，或实测九分区资源布局。两者使用相同的 USB ROM 应用写入流程，不依赖现有 bootloader 的 Recovery 标记。随包 manifest 保持模板契约，绝不替换设备分区表；扇区擦除终点不超过 `0x310000`。不提供整片擦除、bootloader 或分区表写入路径。布局细节见 [helper 契约](../gui/firmware-helper/README.zh_CN.md)。
 
 必须保留 `0x356000` 的 `cardid`、`0x700000` 的永久 Recovery，以及上电长按 UP 五秒的 bootloader hook。桌面端应用镜像与小程序合并镜像用于不同安装流程，详见 [Recovery 兼容规范](development/engineering/ble-recovery-compatibility.zh_CN.md)。
 
@@ -58,6 +58,6 @@ TextInjector 在会话开始时捕获前台目标，检查辅助功能与 Secure
 
 BLE V1 不提供配对、对端认证或应用层加密。持久化的 CoreBluetooth peripheral UUID 用于选择和重连，不能证明设备身份；应用明确展示此限制。认证传输仍属后续工作。
 
-完整流程需要蓝牙、语音识别和辅助功能权限；自动化为可选，插字可由 CGEvent 完成。应用不请求 Mac 麦克风权限。设置和词库在本地持久化，会话音频和转录不持久化。
+完整流程需要蓝牙、语音识别和辅助功能权限；自动化为可选，插字可由 CGEvent 完成。Mac 麦克风权限为可选项，只为热键申请。设置和词库在本地持久化，会话音频和转录不持久化。
 
 构建、host tests 和实机结果分别报告。真实识别质量、持续 BLE 传输、权限、插字、功耗和 Recovery 仍须完成[桌面端验收记录](../gui/docs/acceptance.zh_CN.md)与[固件记录](go-voice-firmware.zh_CN.md#验证)中的检查。

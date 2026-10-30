@@ -63,6 +63,30 @@ func parseAudio(e Event) (Event, error) {
 	return e, nil
 }
 
+// MicFrame is the size of a microphone frame from SpeechBridge: 20 ms of
+// 16 kHz signed 16-bit little-endian mono PCM.
+const MicFrame = protocol.Samples * 2
+
+// parseMic checks a microphone frame: canonical Base64 of exactly one frame
+// and nothing else.
+func parseMic(e Event) (Event, error) {
+	if e.SessionID == 0 || e.Sequence >= protocol.MaxFrames {
+		return Event{}, protocol.ErrInvalid
+	}
+	if e.DeviceID != "" || e.DeviceName != "" || e.PreferredDeviceID != "" || e.Message != "" || e.Text != "" || e.Permission != "" || e.State != "" {
+		return Event{}, protocol.ErrInvalid
+	}
+	if len(e.PayloadBase64) != base64.StdEncoding.EncodedLen(MicFrame) {
+		return Event{}, protocol.ErrInvalid
+	}
+	b, err := base64.StdEncoding.Strict().DecodeString(e.PayloadBase64)
+	if err != nil || len(b) != MicFrame {
+		return Event{}, protocol.ErrInvalid
+	}
+	e.Payload = b
+	return e, nil
+}
+
 func Parse(line []byte) (Event, error) {
 	e, err := decodeEvent(line)
 	if err != nil {
@@ -73,6 +97,9 @@ func Parse(line []byte) (Event, error) {
 			return Event{}, protocol.ErrInvalid
 		}
 		return parseAudio(e)
+	}
+	if e.Type == "mic" {
+		return parseMic(e)
 	}
 	m, err := protocol.Object(line, MaxLine)
 	if err != nil {
@@ -97,6 +124,16 @@ func Parse(line []byte) (Event, error) {
 		e.Payload = b
 	case "permission":
 		if _, _, ok := permission.Parse(e.Permission, e.State); !ok || len(m) != 3 {
+			return e, protocol.ErrInvalid
+		}
+	case "hotkey":
+		// The chord was held long enough (down), let go (up), or another
+		// key was pressed while it was held (abort).
+		if e.Text != "down" && e.Text != "up" && e.Text != "abort" {
+			return e, protocol.ErrInvalid
+		}
+	case "mic-end", "mic-error":
+		if e.SessionID == 0 {
 			return e, protocol.ErrInvalid
 		}
 	case "connected", "subscribed", "disconnected", "discovered", "error", "diagnostic", "ready", "partial", "final", "cancelled", "refined", "inserted", "model":

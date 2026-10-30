@@ -175,3 +175,110 @@ func TestStartTimeoutIsConfigurable(t *testing.T) {
 		t.Fatalf("early frames %d", c.earlyFrames())
 	}
 }
+
+func types(effects []Effect) []string {
+	out := make([]string, len(effects))
+	for i, e := range effects {
+		out[i] = e.Type
+	}
+	return out
+}
+
+func TestMicSessionBuffersUntilReadyAndFinishesAfterMicEnd(t *testing.T) {
+	now := time.Unix(1, 0)
+	c := Coordinator{}
+	e := c.MicStart(now)
+	if len(e) != 2 || e[0].Type != "start" || e[1].Type != "mic_start" || !c.Active || !c.Mic {
+		t.Fatal(types(e))
+	}
+	id := c.Generation
+	frame := make([]byte, 640)
+	binary.LittleEndian.PutUint16(frame, 0x4000)
+	if e := c.MicAudio(id, frame, now); len(e) != 0 {
+		t.Fatal("early frame emitted", types(e))
+	}
+	if e := c.MicAudio(id, frame[:320], now); len(e) != 0 || c.micSeq != 1 {
+		t.Fatal("short frame accepted")
+	}
+	if e := c.MicAudio(id+1, frame, now); len(e) != 0 || c.micSeq != 1 {
+		t.Fatal("frame of another session accepted")
+	}
+	if e := c.MicRelease(now); len(e) != 1 || e[0].Type != "mic_stop" || c.Phase != "tail" {
+		t.Fatal(types(e))
+	}
+	if e := c.MicRelease(now); len(e) != 0 {
+		t.Fatal("second release")
+	}
+	// The last frames arrive before the microphone reports its end.
+	c.MicAudio(id, frame, now)
+	if e := c.MicEnd(id, now); len(e) != 0 {
+		t.Fatal("finished before ready", types(e))
+	}
+	if e := c.MicAudio(id, frame, now); len(e) != 0 || c.micSeq != 2 {
+		t.Fatal("frame after mic end accepted")
+	}
+	e = c.Speech("ready", id, "", now)
+	if got := types(e); len(got) != 3 || got[0] != "pcm" || got[1] != "pcm" || got[2] != "finish" {
+		t.Fatal(got)
+	}
+	if e[0].Sequence != 0 || e[1].Sequence != 1 || c.Phase != "finalizing" || c.Meter.Frames != 2 {
+		t.Fatal(e[0].Sequence, e[1].Sequence, c.Phase, c.Meter.Frames)
+	}
+	c.Speech("final", id, "你好", now)
+	c.Speech("refinement_done", id, "你好。", now)
+	// No device state is reported for a microphone session.
+	if e := c.Speech("inserted", id, "inserted", now); len(e) != 0 || c.Active || c.Mic || c.Phase != "" {
+		t.Fatal(types(e), c.Phase)
+	}
+}
+
+func TestMicSessionReleaseWithoutMicEndFinishesAfterASecond(t *testing.T) {
+	now := time.Unix(1, 0)
+	c := Coordinator{}
+	c.MicStart(now)
+	id := c.Generation
+	c.Speech("ready", id, "", now)
+	c.MicAudio(id, make([]byte, 640), now)
+	c.MicRelease(now)
+	if e := c.Tick(now.Add(900 * time.Millisecond)); len(e) != 0 {
+		t.Fatal(types(e))
+	}
+	if e := c.Tick(now.Add(time.Second)); len(e) != 1 || e[0].Type != "finish" {
+		t.Fatal(types(e))
+	}
+}
+
+func TestMicSessionSurvivesDeviceDisconnectAndBlocksPTT(t *testing.T) {
+	now := time.Unix(1, 0)
+	c := Coordinator{}
+	c.Control(protocol.Control{Type: "hello"}, now)
+	c.MicStart(now)
+	if e := c.Control(protocol.Control{Type: "ptt_down", SessionID: 1}, now); len(e) != 0 {
+		t.Fatal("device session started over a mic session")
+	}
+	if e := c.Disconnect(); len(e) != 0 || !c.Active || c.Phase != "starting" {
+		t.Fatal(types(e), c.Phase)
+	}
+	if e := c.Cancel("已取消"); len(e) != 1 || e[0].Type != "cancel" || c.Phase != "disconnected" {
+		t.Fatal(types(e), c.Phase)
+	}
+	if e := c.MicStart(now); len(e) != 2 {
+		t.Fatal(types(e))
+	}
+	if e := c.Tick(now.Add(3 * time.Second)); c.Active {
+		t.Fatal("silent microphone kept the session", types(e))
+	}
+}
+
+func TestMicSessionStopsAtFrameLimit(t *testing.T) {
+	now := time.Unix(1, 0)
+	c := Coordinator{}
+	c.MicStart(now)
+	id := c.Generation
+	c.Speech("ready", id, "", now)
+	c.micSeq = protocol.MaxFrames - 1
+	e := c.MicAudio(id, make([]byte, 640), now)
+	if got := types(e); len(got) != 3 || got[0] != "pcm" || got[1] != "mic_stop" || got[2] != "finish" {
+		t.Fatal(got)
+	}
+}

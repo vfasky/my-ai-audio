@@ -124,20 +124,15 @@ fn partition_table_requires_md5_and_exact_layout() {
     assert!(parse_partition_table(&bad).is_err());
 }
 #[test]
-fn old_template_devices_still_require_the_recovery_hook() {
+fn template_usb_updates_do_not_depend_on_a_recovery_boot_marker() {
     let parts = parse_partition_table(&table()).unwrap();
     assert_eq!(device_layout(&parts).unwrap(), DeviceLayout::Template);
-    for bootloader in [
-        vec![],
-        vec![0xff; 0x8000],
-        b"UP held: wrong recovery".to_vec(),
-    ] {
-        assert_eq!(
-            plan_app_write(&parts, &bootloader, 4096).unwrap_err().0,
-            "RECOVERY_MARKER_MISSING"
-        );
-    }
-    let plan = plan_app_write(&parts, MARKER.as_bytes(), 4097).unwrap();
+    // Regression: this measured five-partition device has no template hook,
+    // but its existing factory slot supports the same bounded USB app write.
+    let measured = plan_app_write(&parts, 1_162_848).unwrap();
+    assert_eq!(measured.offset, 0x10000);
+    assert_eq!(measured.erase_end, 0x12c000);
+    let plan = plan_app_write(&parts, 4097).unwrap();
     assert_eq!(plan.layout, DeviceLayout::Template);
     assert_eq!(plan.offset, 0x10000);
     assert_eq!(plan.erase_end, 0x12000);
@@ -158,7 +153,7 @@ fn resource_devices_keep_their_vendor_layout_and_bootloader() {
         DeviceLayout::ResourcePartitions
     );
     // The vendor bootloader does not contain our template's marker.
-    let plan = plan_app_write(&parts, b"vendor bootloader", 1_162_848).unwrap();
+    let plan = plan_app_write(&parts, 1_162_848).unwrap();
     assert_eq!(plan.layout, DeviceLayout::ResourcePartitions);
     assert_eq!(plan.offset, 0x10000);
     assert_eq!(plan.erase_end, 0x12c000);
@@ -175,7 +170,7 @@ fn resource_devices_keep_their_vendor_layout_and_bootloader() {
 fn both_layouts_bound_sector_erasure_before_every_protected_partition() {
     for parts in [manifest(&[0xe9]).partitions, resource_parts()] {
         for size in [1, 4095, 4096, 4097, APP_MAX - 1, APP_MAX] {
-            let plan = plan_app_write(&parts, MARKER.as_bytes(), size).unwrap();
+            let plan = plan_app_write(&parts, size).unwrap();
             assert_eq!(plan.offset, 0x10000);
             assert_eq!(plan.erase_end, 0x10000 + size.div_ceil(4096) * 4096);
             assert!(plan.erase_end <= 0x310000);
@@ -186,12 +181,7 @@ fn both_layouts_bound_sector_erasure_before_every_protected_partition() {
             }
         }
         for size in [0, APP_MAX + 1, u32::MAX - 4095, u32::MAX] {
-            assert_eq!(
-                plan_app_write(&parts, MARKER.as_bytes(), size)
-                    .unwrap_err()
-                    .0,
-                "INVALID_IMAGE"
-            );
+            assert_eq!(plan_app_write(&parts, size).unwrap_err().0, "INVALID_IMAGE");
         }
     }
 }
@@ -219,7 +209,7 @@ fn neither_layout_accepts_missing_duplicate_or_modified_partitions() {
                 mutate(&mut bad[index]);
                 // A valid recalculated MD5 must not authorize an unknown layout.
                 assert!(parse_partition_table(&table_for(&bad)).is_err());
-                assert!(plan_app_write(&bad, MARKER.as_bytes(), 4096).is_err());
+                assert!(plan_app_write(&bad, 4096).is_err());
             }
         }
         let mut reversed = parts;

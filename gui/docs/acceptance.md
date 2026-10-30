@@ -2,7 +2,17 @@
 
 # Implementation and acceptance record
 
-Latest recorded validation: 2026-10-23. Each dated section describes its tested implementation and package. USB checks now cover enumeration and read-only bootloader/partition diagnostics; installer writes remain unverified. Historical results do not replace validation of a new release build.
+Latest recorded validation: 2026-10-30. Each dated section describes its tested implementation and package. USB application installation is verified on the five-partition device through the packaged FirmwareHelper. Historical results do not replace validation of a new release build.
+
+## USB ROM application installation (2026-10-30)
+
+Build: PASS for the signed debug application and its three helpers. Host tests: PASS for the GUI gate (20 Bun tests, 15 Rust tests, 9 Swift tests, Go tests/vet, Clippy, firmware resources, macOS compatibility and signatures) and repository/static host checks. The complete root gate stops at the unavailable ESP-IDF 5.5.3 environment; the firmware was not rebuilt.
+
+Device tests: PASS using the new application bundle's FirmwareHelper and the same NDJSON scan/install protocol used by the GUI. The ESP32-C3 / 8 MiB device has the exact five-partition template layout, no expected bootloader log marker, and an erased Recovery image header. The packaged 0.2.0 application (1,162,848 bytes, SHA-256 `30be20312ed0cd6e72935e6a96df47f4029fbafc267f960cb223ac7ae8b325ad`) was written at `0x10000`. The helper reported ordered preflight, writing, verifying and restarting stages, followed by complete. Device-side checksum verification and reset succeeded. Separate reads before and after installation confirmed identical bootloader and partition-table SHA-256 digests. No identity contents were read.
+
+The installer no longer uses a bootloader log string as a USB installation prerequisite. Both known layouts retain exact partition validation and factory erase bounds; the packaged manifest and merged community image retain their Recovery contract. This operation does not restore missing Recovery functionality.
+
+Unverified: physical USB installation on the nine-partition layout, interrupted-write behavior, native Install-button interaction, UP-key/Recovery behavior, and button/audio acceptance. The earlier direct USB test separately observed the firmware starting and advertising Go Voice. Historical acceptance records follow.
 
 ## Dual device-layout validation (2026-10-23)
 
@@ -30,7 +40,7 @@ Device acceptance must still confirm app-only writes at `0x10000`, preflight rej
 
 ## Implemented contract
 
-- Thin Go entry point, independent module, MyGo 0.5.5 native UI and standard debug packaging. The release app name is `go-voice`, its bundle id is `yz.sh.mygo-go-voice`; local builds are `go-voice-debug` / `yz.sh.mygo-go-voice.debug`, with `.debug` appended to every helper identifier. The BLE product identity remains Go Voice.
+- Thin Go entry point, independent module, MyGo 0.7.3 native UI and standard debug packaging. The release app name is `go-voice`, its bundle id is `yz.sh.mygo-go-voice`; local builds are `go-voice-debug` / `yz.sh.mygo-go-voice.debug`, with `.debug` appended to every helper identifier. The BLE product identity remains Go Voice.
 - Strict control validation rejects duplicate/unknown keys, trailing JSON, malformed UTF-8, invalid numeric types, unsupported format, missing mandatory fields and oversize controls. Audio envelope validation, 64-part assembly, duplicate suppression, deterministic bounded eviction, independent 166-byte IMA-ADPCM, 320-sample PCM and bounded ordering are pure Go.
 - Streaming has a 75-frame early buffer, 80 ms gap wait, cumulative 100-frame silence limit, 500 ms announced-tail deadline, three-second stall, and 15,000-frame/five-minute cap. RMS, peak, 32 waveform bins, duration and received/missing/recovered/duplicate counts are calculated without retaining audio history.
 - Coordinator tests exercise start, duplicate start, early frames, release before Speech readiness, finish, refinement, insertion acknowledgment, disconnect, cancellation, stale results, acceptance timeout, consecutive sessions that reuse PTT sequence 0/1, and button events in their independent sequence space. Every native Speech request uses a host generation ID distinct from the BLE session ID. Device cancellation clears the current request before sending native cancellation.
@@ -38,7 +48,7 @@ Device acceptance must still confirm app-only writes at `0x10000`, preflight rej
 - Real SpeechAnalyzer/SpeechTranscriber accepts 16 kHz Int16 mono PCM, uses volatile results and per-session contextual strings, prepares/reserves zh-CN assets, emits session-scoped partial/final/error/cancel events and never opens a Mac audio input. The helper keeps the physical main thread alive with `RunLoop.main.run()` because Speech framework operations cannot rely on a dispatch main queue whose original main thread has exited. Swift Package targets compile against the installed SDK, not stub APIs. Both helpers read long-lived stdin with readiness notifications; real-process regression tests keep stdin open and require immediate command handling.
 - TextInjector captures the foreground target at start, checks Accessibility/Secure Input, handles modifiers, uses System Events then CGEvent, and restores the full pasteboard snapshot after 0.5 seconds only if its ownership marker and change count still match. Missing/changed targets fall back to clipboard-only.
 - Vocabulary persists required fields, deduplicates, supports manual CRUD and locking, rejects AI deletion/replacement of locked terms and supplies Top 100 terms. Refinement uses a fresh local FoundationModels session by default; cloud is explicitly selected. Modes include off/names/light/structured, a 30-second timeout, and empty/error/low-fidelity fallback to final ASR original. Remote HTTPS rejects credentials in URLs and redirects; only Keychain supplies bearer credentials.
-- The UI owns neither helper processes nor Speech sessions. The application composes services and dispatches background results with `mygo.RunOnMain`. Current audio/transcript state is transient. No microphone usage description or audio-input entitlement is included.
+- The UI owns neither helper processes nor Speech sessions. The application composes services and dispatches background results with `mygo.RunOnMain`. Current audio/transcript state is transient. The microphone usage description and audio-input entitlement serve only the hold-to-talk hotkey; the input opens only while the chord is held.
 
 ## Automated evidence
 

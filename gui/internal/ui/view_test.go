@@ -38,6 +38,7 @@ type intents struct {
 	jevTested                                []jev.Config
 	jevDeleted                               int
 	keyChecks                                []string
+	hotkeys                                  []string
 }
 
 func testView(rec *intents) *View {
@@ -84,6 +85,7 @@ func testView(rec *intents) *View {
 			TestJev:      func(c jev.Config, _ string) { rec.jevTested = append(rec.jevTested, c) },
 			DeleteJevKey: func() { rec.jevDeleted++ },
 			CheckKey:     func(account string) { rec.keyChecks = append(rec.keyChecks, account) },
+			SetHotkey:    func(id string) { rec.hotkeys = append(rec.hotkeys, id) },
 		},
 	}
 }
@@ -687,6 +689,33 @@ func TestGeneralPageTogglesOpenAtLogin(t *testing.T) {
 	tt.Frame()
 	if err := tt.Click("打开登录项"); err != nil || rec.loginItems != 1 {
 		t.Fatalf("login items: %v %d", err, rec.loginItems)
+	}
+}
+
+func TestGeneralPageChoosesHotkeyAndAsksForMicrophone(t *testing.T) {
+	var rec intents
+	v := testView(&rec)
+	v.Page = GeneralPage
+	v.Snapshot.Hotkey = "shift+option"
+	tt := newTester(v)
+	if !tt.HasText("按住说话") {
+		t.Fatalf("hotkey group: %q", tt.Texts())
+	}
+	if err := tt.Click("授权麦克风"); err != nil || len(rec.requested) != 1 || rec.requested[0] != permission.Microphone {
+		t.Fatalf("request: %v %v", err, rec.requested)
+	}
+	if err := tt.Click("⌃ + ⌥"); err != nil || len(rec.hotkeys) != 1 || rec.hotkeys[0] != "control+option" {
+		t.Fatalf("choose: %v %v", err, rec.hotkeys)
+	}
+	v.Snapshot.Permissions = permission.Set{permission.Microphone: permission.Denied}
+	tt.Frame()
+	if err := tt.Click("打开系统设置"); err != nil || len(rec.settings) != 1 || rec.settings[0] != permission.Microphone {
+		t.Fatalf("settings: %v %v", err, rec.settings)
+	}
+	v.Snapshot.Hotkey = "off"
+	tt.Frame()
+	if tt.HasText("麦克风未授权，热键无法录音。") {
+		t.Fatal("warning shown with the hotkey off")
 	}
 }
 

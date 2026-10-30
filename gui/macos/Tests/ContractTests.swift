@@ -33,6 +33,97 @@ final class ContractTests: XCTestCase {
       try Command(data: Data(#"{"type":"begin","sessionId":3}"#.utf8)).sessionId, 3)
     XCTAssertThrowsError(try Command(data: Data(#"{"type":"begin"}"#.utf8)))
   }
+  func testHotkeyAndMicrophoneCommands() throws {
+    XCTAssertEqual(
+      try Command(data: Data(#"{"type":"hotkey","text":"shift+option"}"#.utf8)).text, "shift+option")
+    XCTAssertNoThrow(try Command(data: Data(#"{"type":"hotkey","text":"off"}"#.utf8)))
+    XCTAssertThrowsError(try Command(data: Data(#"{"type":"hotkey","text":"command+q"}"#.utf8)))
+    XCTAssertNoThrow(try Command(data: Data(#"{"type":"mic-start","sessionId":2}"#.utf8)))
+    XCTAssertThrowsError(try Command(data: Data(#"{"type":"mic-stop"}"#.utf8)))
+    XCTAssertNoThrow(
+      try Command(data: Data(#"{"type":"request-permission","text":"microphone"}"#.utf8)))
+  }
+  func testChordNeedsToBeHeldAlone() {
+    var t = ChordTracker(chord: Modifiers.chord(named: "shift+option"))
+    XCTAssertNil(t.flags(.shift))
+    guard case .arm(let first)? = t.flags([.shift, .option]) else { return XCTFail("arm") }
+    XCTAssertEqual(t.fire(first), .down)
+    XCTAssertTrue(t.isHeld)
+    XCTAssertEqual(t.flags(.option), .up)
+    XCTAssertNil(t.flags([]))
+    // A shortcut with the same modifiers never starts a recording, and the
+    // chord must be let go before it arms again.
+    guard case .arm(let second)? = t.flags([.shift, .option]) else { return XCTFail("rearm") }
+    XCTAssertNil(t.key())
+    XCTAssertNil(t.fire(second))
+    XCTAssertNil(t.flags([.shift, .option]))
+    XCTAssertNil(t.flags(.shift))
+    guard case .arm(let third)? = t.flags([.shift, .option]) else { return XCTFail("arm again") }
+    XCTAssertEqual(t.fire(third), .down)
+    XCTAssertEqual(t.key(), .abort)
+    XCTAssertNil(t.flags([]))
+    // An extra modifier while recording is a shortcut too.
+    guard case .arm(let fourth)? = t.flags([.shift, .option]) else { return XCTFail("arm 4") }
+    XCTAssertEqual(t.fire(fourth), .down)
+    XCTAssertEqual(t.flags([.shift, .option, .command]), .abort)
+    XCTAssertNil(t.flags([.shift, .option]))
+    XCTAssertNil(t.flags([]))
+    // Released before the hold delay: nothing.
+    guard case .arm(let fifth)? = t.flags([.shift, .option]) else { return XCTFail("arm 5") }
+    XCTAssertNil(t.flags([]))
+    XCTAssertNil(t.fire(fifth))
+    // Turning the chord off aborts a recording.
+    guard case .arm(let sixth)? = t.flags([.shift, .option]) else { return XCTFail("arm 6") }
+    XCTAssertEqual(t.fire(sixth), .down)
+    XCTAssertEqual(t.set(nil), .abort)
+    XCTAssertNil(t.flags([.shift, .option]))
+    XCTAssertNil(Modifiers.chord(named: "off"))
+  }
+  func testChordWithAMouseButtonOrKeyAlreadyDownDoesNotRecord() {
+    var t = ChordTracker(chord: Modifiers.chord(named: "shift+option"))
+    // A mouse button held before the chord: never arms.
+    XCTAssertNil(t.flags(.shift, othersDown: true))
+    XCTAssertNil(t.flags([.shift, .option], othersDown: true))
+    // Releasing the button alone does not arm it either; the chord must be
+    // pressed again.
+    XCTAssertNil(t.flags([.shift, .option]))
+    XCTAssertNil(t.flags(.shift))
+    guard case .arm(let g)? = t.flags([.shift, .option]) else { return XCTFail("arm") }
+    // Pressed during the hold delay, between events the tap saw.
+    XCTAssertNil(t.fire(g, othersDown: true))
+    XCTAssertFalse(t.isHeld)
+    XCTAssertNil(t.flags([]))
+    guard case .arm(let h)? = t.flags([.shift, .option]) else { return XCTFail("rearm") }
+    XCTAssertEqual(t.fire(h), .down)
+  }
+  func testFnDisqualifiesTheChord() {
+    var t = ChordTracker(chord: Modifiers.chord(named: "shift+option"))
+    // Fn held with the chord: never arms.
+    XCTAssertNil(t.flags(.function))
+    XCTAssertNil(t.flags([.function, .shift]))
+    XCTAssertNil(t.flags([.function, .shift, .option]))
+    // Letting Fn go leaves the chord, which must be pressed again.
+    XCTAssertNil(t.flags([.shift, .option]))
+    XCTAssertNil(t.flags(.shift))
+    guard case .arm(let g)? = t.flags([.shift, .option]) else { return XCTFail("arm") }
+    XCTAssertEqual(t.fire(g), .down)
+    // Fn pressed while recording cancels.
+    XCTAssertEqual(t.flags([.shift, .option, .function]), .abort)
+    XCTAssertFalse(t.isHeld)
+  }
+  func testFrameChunkerCutsTwentyMillisecondFrames() {
+    var chunker = FrameChunker()
+    let samples = [Int16](repeating: -2, count: 700)
+    let frames = samples.withUnsafeBufferPointer { chunker.push($0) }
+    XCTAssertEqual(frames.count, 2)
+    XCTAssertEqual(frames[0].count, 640)
+    XCTAssertEqual(frames[0][0], 0xfe)
+    XCTAssertEqual(frames[0][1], 0xff)
+    let rest = chunker.flush()
+    XCTAssertEqual(rest?.count, 640)
+    XCTAssertEqual(rest?[2 * 60], 0)
+    XCTAssertNil(chunker.flush())
+  }
   func testSessionIdentity() {
     var guardState = SessionGuard()
     XCTAssertTrue(guardState.start(1))

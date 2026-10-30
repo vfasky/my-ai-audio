@@ -253,25 +253,11 @@ pub struct AppWritePlan {
 }
 
 /// Approves only an app write wholly within the existing factory partition.
-/// Template devices retain their recovery-marker gate. The measured resource
-/// layout uses its existing vendor bootloader, not the template hook; preserving
-/// that bootloader does not certify its UP-key or Recovery implementation.
-pub fn plan_app_write(
-    parts: &[Partition],
-    bootloader: &[u8],
-    app_size: u32,
-) -> Result<AppWritePlan> {
+/// USB ROM installation preserves the existing bootloader and Recovery storage;
+/// it does not require or certify their UP-key/Recovery implementation. The
+/// packaged firmware retains its separate mini-program Recovery contract.
+pub fn plan_app_write(parts: &[Partition], app_size: u32) -> Result<AppWritePlan> {
     let layout = device_layout(parts)?;
-    if layout == DeviceLayout::Template
-        && !bootloader
-            .windows(MARKER.len())
-            .any(|s| s == MARKER.as_bytes())
-    {
-        return Err(Failure(
-            "RECOVERY_MARKER_MISSING",
-            "Permanent recovery bootloader hook not found",
-        ));
-    }
     let erase_end = app_size
         .checked_add(4095)
         .map(|n| n & !4095)

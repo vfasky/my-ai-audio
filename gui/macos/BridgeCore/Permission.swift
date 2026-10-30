@@ -3,7 +3,7 @@ import Foundation
 /// Privacy grants the helpers report to MyGo as
 /// {"type":"permission","permission":name,"state":state}.
 public enum Permission {
-  public static let speechNames = ["speech", "accessibility", "automation"]
+  public static let speechNames = ["speech", "accessibility", "automation", "microphone"]
   /// Maps AEDeterminePermissionToAutomateTarget results.
   public static func automationState(_ status: Int32) -> String {
     switch status {

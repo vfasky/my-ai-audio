@@ -22,6 +22,8 @@
   <true/>
   <key>NSSpeechRecognitionUsageDescription</key>
   <string>Transcribe audio received from your FoloToy AI Passport on this Mac.</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Record your voice with the Mac microphone only while you hold the go-voice hotkey.</string>
   <key>NSAppleEventsUsageDescription</key>
   <string>Insert your completed dictation into the captured application.</string>
 </dict>

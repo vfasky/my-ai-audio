@@ -72,6 +72,8 @@ type Snapshot struct {
 	LoginApproval   bool
 	LoginFeedback   string
 	LoginFeedbackOK bool
+	// Hotkey is the saved chord held to record with the Mac microphone.
+	Hotkey string
 }
 type Actions struct {
 	FirmwareScan, FirmwareInstall func()
@@ -120,6 +122,9 @@ type Actions struct {
 	TestJev        func(jev.Config, string)
 	DeleteJevKey   func()
 	OpenLoginItems func()
+	// SetHotkey saves the chord held to record with the Mac microphone, or
+	// hotkey.Off.
+	SetHotkey func(string)
 }
 type View struct {
 	Page                  int
@@ -177,7 +182,7 @@ var pages = []struct {
 	{"refinement", "AI 润色", "本地优先，失败时保留 ASR 原文", iconSparkle},
 	{"firmware", "固件安装", "通过 USB 安装随应用提供的固件", iconChip},
 	{"permissions", "权限", "开始使用前授予系统权限，避免使用中途失败", iconShield},
-	{"general", "通用", "登录时打开等应用行为", iconSliders},
+	{"general", "通用", "登录时打开、麦克风热键等应用行为", iconSliders},
 }
 
 var (
@@ -477,7 +482,7 @@ func (v *View) device(c *ui.Context) {
 	ui.RichText(c,
 		ui.Span{Text: "仅使用 "},
 		ui.Span{Text: "FoloToy AI Passport 音频", Weight: 650},
-		ui.Span{Text: where + "不保存、不回放音频，也不使用 Mac 麦克风；最终文本插入到你选择的应用。"},
+		ui.Span{Text: where + "也可以按住热键用 Mac 麦克风说话。不保存、不回放音频；最终文本插入到你选择的应用。"},
 	).FontSize(16).LineHeight(1.65).TextColor(colSubtle)
 
 	live, working := isLive(s.Phase), isWorking(s.Phase)

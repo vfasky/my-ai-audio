@@ -15,7 +15,9 @@ BLE 服务，验证设备后接收应用与资源分区，保护设备身份，�
 最后启动新应用。
 
 因此，社区固件是 Recovery 的安装输入，不是 Recovery 的替代品。如果设备的永久
-Recovery 已被擦除，必须先走官网 USB 恢复流程。
+Recovery 已被擦除，使用小程序安装前必须先走官网 USB 恢复流程。桌面 USB 安装器
+可以独立通过芯片 ROM 仅更新现有 factory 应用；它保留 bootloader 和 Recovery
+存储，不会修复缺失的 Recovery 功能。
 
 ## 必须保持的契约
 

@@ -18,8 +18,11 @@ protects device identity, commits a compatible partition table, and starts the
 new application.
 
 The community artifact is therefore an input to Recovery, not a replacement for
-Recovery. A device whose permanent Recovery was erased must first be restored
-with the official USB recovery flow.
+Recovery. To use mini-program installation on a device whose permanent
+Recovery was erased, first restore it with the official USB recovery flow.
+The desktop USB installer can independently update only the existing factory
+application through the chip ROM; it preserves the bootloader and Recovery
+storage and does not restore missing Recovery functionality.
 
 ## Mandatory contract
 
