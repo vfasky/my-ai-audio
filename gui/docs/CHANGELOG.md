@@ -6,6 +6,12 @@
 
 Each `## <version>` section is the release note of one signed `go-voice` release. `scripts/release.sh` requires the section in both language files; the Simplified Chinese section is signed into the update manifest and shown in the in-app update window, because the app interface is Chinese. Write user-visible changes only and keep both sections aligned. See [updates and releases](updates.md).
 
+## 0.7.1
+
+- Start with a bundled vocabulary of 16 terms and 15 replacement rules when no vocabulary file exists yet. The starter entries cover company and product names, work terms and common misrecognitions, and can be managed on the Vocabulary page. Existing vocabulary files are preserved; upgrading does not add, replace or remove their entries.
+
+Install the Apple Silicon DMG on macOS 26 or later, or choose Check for Updates… in an installed release. Bundled firmware remains 0.2.0. Open Vocabulary to manage terms and replacement rules. Build and setup instructions are in the [application guide](https://github.com/vfasky/my-ai-audio/blob/go-voice-v0.7.1/gui/README.md). Host tests cover loading the defaults; first-launch UI behavior, recognition quality and installed-update permission retention remain unverified.
+
 ## 0.7.0
 
 - Fix USB firmware installation stopping with `RECOVERY_MARKER_MISSING` on supported five-partition devices. Both supported layouts now use the same bounded USB ROM application-write flow, with image, chip, security, flash-size and partition checks, device checksum verification and reset. Bootloader, device identity, resources and Recovery storage stay in place. The packaged installer completed a real installation on the five-partition device.

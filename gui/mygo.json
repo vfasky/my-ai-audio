@@ -1,7 +1,7 @@
 {
   "name": "go-voice",
   "identifier": "yz.sh.mygo-go-voice",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "icon": "resources/icon.png",
   "out": "build/debug",
   "resources": ["firmware", "licenses", "docs/THIRD_PARTY_NOTICES.md", "docs/THIRD_PARTY_NOTICES.zh_CN.md"],

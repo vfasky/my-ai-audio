@@ -6,6 +6,8 @@
 
 ## Unreleased
 
+- Publish go-voice 0.7.1 with the bundled starter vocabulary for users without a vocabulary file. Preserve existing vocabulary, and refresh release notes and website downloads.
+
 - Ship a default vocabulary with go-voice: 16 terms and 15 replacements (company and product names, work terms and their common misrecognitions). A first run without a `vocabulary.json` starts from them; an existing vocabulary file is never changed. Verified by host tests only.
 
 - Publish go-voice 0.7.0 with the verified USB application installer, an optional Mac microphone hotkey and the upgraded updater. Refresh the website download links and release notes, and explain the optional microphone path and its permissions.
