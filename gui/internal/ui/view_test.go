@@ -568,7 +568,7 @@ func TestSnapshots(t *testing.T) {
 	s := &v.Snapshot
 	s.Selected, s.Ready, s.Firmware, s.Phase, s.SpeechActive = "6F1C-22A0", true, "1.2.0", "recording", true
 	s.Connection, s.Model, s.Status = "Connected; ATT payload ≥182 B", "zh-CN model warmed", "Credential saved in Keychain"
-	s.Devices = []Device{{ID: "6F1C-22A0", Name: "FoloToy AI Passport"}, {ID: "91AB-07CC", Name: "Go Voice"}}
+	s.Devices = []Device{{ID: "6F1C-22A0", Name: "FoloToy AI Passport"}, {ID: "91AB-07CC", Name: "Yi Yan"}}
 	s.Partial, s.Original = "今天我们介绍自定义声音", "今天我们介绍自定义声音。只需几秒钟的音频即可克隆你的声音。"
 	for i := range s.Meter.Bins {
 		s.Meter.Bins[i] = []float64{0.01, 0.04, 0.12, 0.3, 0.08, 0.5, 0.2, 0.02}[i%8]
@@ -851,5 +851,16 @@ func TestRefinementStreamAndProviderRoutingDraft(t *testing.T) {
 	}
 	if got := rec.configured[0]; !got.Stream || got.ProviderOrder != "antdigital, bigmodel" || !got.ProviderStrict {
 		t.Fatalf("saved %+v", got)
+	}
+}
+
+func TestDisplayDeviceNameMapsCachedBluetoothNames(t *testing.T) {
+	for _, name := range []string{"Go Voice", "伊言", "YiYan", "Yi Yan"} {
+		if got := DisplayDeviceName(name); got != "Yi Yan" {
+			t.Fatalf("DisplayDeviceName(%q) = %q", name, got)
+		}
+	}
+	if got := DisplayDeviceName("FoloToy AI Passport"); got != "FoloToy AI Passport" {
+		t.Fatalf("other names must stay: %q", got)
 	}
 }

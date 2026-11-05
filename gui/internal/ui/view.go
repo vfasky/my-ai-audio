@@ -234,7 +234,10 @@ func (v *View) sidebar(c *ui.Context) {
 						ui.Icon(c, iconWave).Size(16, 16).TextColor(colOrange)
 					})
 				}
-				ui.Text(c, "伊言").FontSize(14).FontWeight(600).SingleLine().AlignSelf(ui.Center)
+				ui.Column(c).Gap(1).AlignSelf(ui.Center).Children(func() {
+					ui.Text(c, "伊言").FontSize(14).FontWeight(600).SingleLine()
+					ui.Text(c, "一言九鼎").FontSize(11).TextColor(colMuted).SingleLine()
+				})
 			})
 			nav := pages[min(max(v.Page, 0), len(pages)-1)].id
 			list := ui.Sidebar(c, &nav, func() {
@@ -461,10 +464,20 @@ func (v *View) deviceName() string {
 	}
 	for _, d := range s.Devices {
 		if d.ID == s.Selected && d.Name != "" {
-			return d.Name
+			return DisplayDeviceName(d.Name)
 		}
 	}
 	return "FoloToy AI Passport"
+}
+
+// DisplayDeviceName shows the current Bluetooth name for a device that
+// macOS still lists under a name cached from an earlier firmware.
+func DisplayDeviceName(name string) string {
+	switch name {
+	case "Go Voice", "伊言", "YiYan":
+		return "Yi Yan"
+	}
+	return name
 }
 
 func (v *View) device(c *ui.Context) {
@@ -528,7 +541,7 @@ func (v *View) device(c *ui.Context) {
 				ui.Box(c).Size(30, 30).Radius(15).Background(colPill).Center().Children(func() {
 					ui.Icon(c, iconBolt).Size(14, 14).TextColor(pick(d.ID == s.Selected, colOrange, colMuted))
 				})
-				ui.Text(c, fallback(d.Name, "FoloToy AI Passport")).FontSize(14).FontWeight(500).SingleLine().Grow(1).MinWidth(0)
+				ui.Text(c, DisplayDeviceName(fallback(d.Name, "FoloToy AI Passport"))).FontSize(14).FontWeight(500).SingleLine().Grow(1).MinWidth(0)
 				if d.ID == s.Selected {
 					ui.Badge(c, "已选择").Background(colOrangeSoft).TextColor(colOrange)
 				} else if smallPill(c, "select", "连接", pillSecondary, nil, s.Install.Busy()) {
