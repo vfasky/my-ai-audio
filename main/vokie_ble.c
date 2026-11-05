@@ -28,7 +28,7 @@
 #include <string.h>
 
 static const char *TAG = "vokie_ble";
-static const char *DEVICE_NAME = "Go Voice";
+static const char *DEVICE_NAME = "伊言";
 extern const uint8_t boot_pcm_start[] asm("_binary_vokie_boot_16k_pcm_start");
 extern const uint8_t boot_pcm_end[] asm("_binary_vokie_boot_16k_pcm_end");
 static const uint16_t NO_CONN = BLE_HS_CONN_HANDLE_NONE;
@@ -486,14 +486,14 @@ static int gap_event(struct ble_gap_event *event, void *arg)
             s_host_ready = false; s_control_subscribed = false; s_audio_subscribed = false;
             ui_status_set_state(UI_STATUS_STARTING, "Connecting");
         } else {
-            ui_status_set_state(UI_STATUS_DISCONNECTED, "Waiting for Go Voice");
+            ui_status_set_state(UI_STATUS_DISCONNECTED, "Waiting for connection");
             advertise();
         }
     } else if (event->type == BLE_GAP_EVENT_DISCONNECT) {
         ++s_connection_epoch;
         s_recording = false; s_stop_requested = false; s_host_ready = false;
         s_control_subscribed = false; s_audio_subscribed = false; s_conn = NO_CONN;
-        ui_status_set_state(UI_STATUS_DISCONNECTED, "Waiting for Go Voice");
+        ui_status_set_state(UI_STATUS_DISCONNECTED, "Waiting for connection");
         advertise();
     } else if (event->type == BLE_GAP_EVENT_SUBSCRIBE && event->subscribe.conn_handle == s_conn) {
         // NimBLE reports the characteristic value handle, not the CCCD handle.
@@ -533,7 +533,7 @@ esp_err_t vokie_ble_start(void)
     ble_hs_cfg.reset_cb = on_reset; ble_hs_cfg.sync_cb = on_sync;
     nimble_port_freertos_init(host_task);
     if (xTaskCreate(audio_task, "vokie_audio", 4096, NULL, 5, &s_audio_task) != pdPASS) return ESP_ERR_NO_MEM;
-    s_started = true; ESP_LOGI(TAG, "Go Voice BLE ready"); return ESP_OK;
+    s_started = true; ESP_LOGI(TAG, "YiYan BLE ready"); return ESP_OK;
 }
 
 bool vokie_ble_ready(void) { return s_control_subscribed && s_audio_subscribed && s_host_ready; }

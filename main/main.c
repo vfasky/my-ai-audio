@@ -13,7 +13,7 @@ static const char *TAG = "main";
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "Go Voice firmware starting");
+    ESP_LOGI(TAG, "YiYan firmware starting");
 #if CONFIG_PM_ENABLE
     const esp_pm_config_t power = {
         .max_freq_mhz = 160,
@@ -48,11 +48,11 @@ void app_main(void)
     // BLE starts advertising before a host connects. Keep the UI explicit
     // about that waiting state; READY is reserved for a completed host
     // handshake.
-    ui_status_set_state(UI_STATUS_DISCONNECTED, "Waiting for Go Voice");
+    ui_status_set_state(UI_STATUS_DISCONNECTED, "Waiting for connection");
     err = vokie_ble_start();
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "Go Voice BLE startup failed: %s", esp_err_to_name(err));
+        ESP_LOGE(TAG, "YiYan BLE startup failed: %s", esp_err_to_name(err));
     } else {
-        ESP_LOGI(TAG, "Ready: advertise as Go Voice; click UP to talk");
+        ESP_LOGI(TAG, "Ready: advertise as YiYan; click UP to talk");
     }
 }

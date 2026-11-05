@@ -339,7 +339,7 @@ final class Central: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
       emit([
         "type": "discovered",
         "deviceId": candidate.identifier.uuidString,
-        "deviceName": advertisedName ?? candidate.name ?? "Go Voice"
+        "deviceName": advertisedName ?? candidate.name ?? "伊言"
       ])
       return
     }
@@ -430,7 +430,7 @@ final class Central: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate {
     emit([
       "type": "connected",
       "deviceId": peripheral.identifier.uuidString,
-      "deviceName": peripheral.name ?? "Go Voice",
+      "deviceName": peripheral.name ?? "伊言",
       "preferredDeviceId": preferredDeviceId?.uuidString ?? peripheral.identifier.uuidString
     ])
     emit(["type": "subscribed"])

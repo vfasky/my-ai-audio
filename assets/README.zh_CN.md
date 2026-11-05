@@ -6,9 +6,8 @@
 
 ## Go Voice 标志与标题
 
-- 来源：[brand/go-voice-gopher-source.png](brand/go-voice-gopher-source.png)，保留依据用户参考与要求生成的原始图稿。圆胖的 Gopher 略微歪头，保留灵动眼神、小门牙和收在胸前的小爪子，右下角配有麦克风。最终图稿使用透明底白色图案：原白色区域保持白色，原黑色区域变为透明，包括背景和面部镂空；抗锯齿边缘保留部分透明度。派生的 [brand/go-voice-logo.png](brand/go-voice-logo.png) 为 1024×1024 RGBA，保持透明底用于生成固件资源。桌面图标 `gui/resources/icon.png` 使用相同白色图稿叠加不透明黑色圆角底，仅底块外边距透明；未使用 Vokie 图形。
-- 使用 `"$WAKU_BUN_EXECUTABLE" tools/generate-go-voice-logo.mjs` 生成全部标志资源（需要带 `Bun.Image` 的 bundled Bun 和 FFmpeg）。Bun.Image 将原图缩至 1024px；FFmpeg 叠合黑底、调整灰阶以去除淡纹理并保留抗锯齿边缘，再应用内缩 48px、半径 216px 的圆角底。随后叠加 [brand/go-voice-microphone.png](brand/go-voice-microphone.png)，保留吉祥物原样，再将 RGB 置白，并以原白色覆盖率计算透明度（`new_alpha = old_alpha * old_gray / 255`），移除黑色底块，将面部线条变为透明。麦克风的可编辑源文件为 [brand/go-voice-microphone.svg](brand/go-voice-microphone.svg)；修改后先在 macOS 运行 `swift tools/render-go-voice-logo.swift assets/brand/go-voice-microphone.svg assets/brand/go-voice-microphone.png` 重新生成透明 1024px PNG，再运行主生成脚本。Bun.Image 将完成的图标缩小至 64×64；FFmpeg 将所有透明区域叠合到现有屏幕背景 `#0B1018` 并输出 RGB565 小端 [go_voice_logo_asset.h](brand/go_voice_logo_asset.h)。临时目录在 `finally` 中清理；原始图稿保持原样，派生 PNG 与头文件重新生成。头文件记录 PNG 的 SHA-256。
-- 单独生成桌面图标可运行 `"$WAKU_BUN_EXECUTABLE" tools/generate-go-voice-app-icon.mjs`，将透明白色图稿叠合到黑底，在 1024px 画布上应用内缩 48px、半径 216px 的圆角。完整标志生成脚本也会调用此步骤，避免重新生成固件资源时把桌面图标还原成透明底。仅生成 APP 图标的命令不会改写标志 PNG、固件头文件或固件二进制。
+- 来源：[brand/yz-logo-source.png](brand/yz-logo-source.png)（伊智科技 LOGO，519×143，白色透明底）。仅取左侧圆形标志，派生出 [brand/go-voice-logo.png](brand/go-voice-logo.png)（1024×1024 透明）、桌面图标 `gui/resources/icon.png`（黑色圆角底板）、菜单栏图标和官网图标，并转换为固件 64×64 RGB565 头文件 [go_voice_logo_asset.h](brand/go_voice_logo_asset.h)。
+- 使用 `"$WAKU_BUN_EXECUTABLE" tools/generate-go-voice-logo.mjs` 生成（需要 FFmpeg），随后运行 `gui/scripts/generate-tray-icon.mjs` 生成菜单栏图标。
 - `main/ui_status.c` 通过 `main/CMakeLists.txt` 的品牌目录路径引用头文件。像素常量为 8192 字节，与旧图相同，无运行时解码或缩放缓冲区；高分辨率源图不嵌入固件。
 - 标题使用已启用的 LVGL Montserrat 20 字体，包含全部 `Go Voice` 字符。标题位置、宽度、对齐和裁切不变，不新增字体或堆分配。
 - 按用户要求制作的品牌素材用于本项目，本说明不主张独立再分发授权。见[第三方声明](../docs/THIRD_PARTY_NOTICES.zh_CN.md)。

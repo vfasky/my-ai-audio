@@ -69,7 +69,7 @@ manifest 所有字段必填，拒绝未知字段；大小、偏移、type、subt
 
 即使 MD5 正确，缺失、重复、修改或额外增加的分区也会被拒绝。随包 manifest 保持原有五分区固件产物契约，绝不会作为新分区表写入设备。`plan_app_write` 独立限制扇区对齐后的擦除终点不超过 `0x310000`，并检查与每个非应用分区不重叠。不读取 cardid 内容。通过 `Connection::command(ReadFlashSlow)` 逐次读取 64 字节，避免 espflash 4.6.0 `read_flash_rom` 的累加偏移问题。ROM 命令不支持时返回 `PREFLIGHT_READ_UNAVAILABLE`，不会回退到整包刷写。连接后的预检失败会先尝试正常硬复位，再返回原始错误；若复位不可用，需要给设备重新上电。
 
-唯一写操作是 `Flasher::write_bin_to_flash(0x10000, app, callbacks)`，开启验证、关闭跳过。其设备端 `FlashMd5` 比对在复位前完成，由 `ProgressCallbacks` 报告验证与复位阶段。最多填充三个 `0xff` 字节，扇区擦除范围保持在 factory 内。库结束 ROM 写入并执行硬复位，只有成功返回后才发送 complete。没有整片擦除、分区表写入、bootloader 写入或设备初始化操作。
+唯一写操作是 `Flasher::write_bin_to_flash(0x10000, app, callbacks)`，开启验证、关闭跳过。其设备端 `FlashMd5` 比对在复位前完成，由 `ProgressCallbacks` 报告验证与复位阶段。最多填充三个 `0xff` 字节，扇区擦除范围保持在 factory 内。库结束 ROM 写入并执行硬复位，只有成功返回后才发送 complete。若在设备端校验通过之后失败，助手会再尝试一次复位并仍报告完成；校验之前的失败仍为 `FLASH_FAILED`。没有整片擦除、分区表写入、bootloader 写入或设备初始化操作。
 
 稳定错误码包括 `INVALID_REQUEST`、`REQUEST_TOO_LARGE`、`INVALID_PATH`、`FILE_READ_FAILED`、`INVALID_FILE`、`INVALID_MANIFEST`、`INVALID_IMAGE`、`HASH_MISMATCH`、`INVALID_LAYOUT`、`SCAN_FAILED`、`PORT_NOT_ALLOWED`、`CONNECT_FAILED`、`CHIP_MISMATCH`、`SECURITY_UNAVAILABLE`、`UNSAFE_SECURITY_STATE`、`FLASH_SIZE_UNAVAILABLE`、`FLASH_SIZE_MISMATCH`、`UNSAFE_READ`、`PREFLIGHT_READ_UNAVAILABLE`、`FLASH_FAILED`、`VERIFICATION_UNAVAILABLE`、`OUTPUT_FAILED`。
 

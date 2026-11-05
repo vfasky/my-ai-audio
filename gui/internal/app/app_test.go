@@ -132,6 +132,31 @@ func TestHotkeyRecordsWithMicrophoneUntilReleased(t *testing.T) {
 	}
 }
 
+func TestOnlyOneCopyOwnsTheHotkey(t *testing.T) {
+	dir := t.TempDir()
+	first := &application{directory: dir, config: settings{Hotkey: "shift+option"}}
+	second := &application{directory: dir, config: settings{Hotkey: "shift+option"}}
+	first.applyHotkey()
+	second.applyHotkey()
+	if first.hotkeySent != "shift+option" || first.view.Snapshot.HotkeyBusy {
+		t.Fatalf("first: %q busy %v", first.hotkeySent, first.view.Snapshot.HotkeyBusy)
+	}
+	if second.hotkeySent != "off" || !second.view.Snapshot.HotkeyBusy {
+		t.Fatalf("second: %q busy %v", second.hotkeySent, second.view.Snapshot.HotkeyBusy)
+	}
+	// Turning it off in the first frees it; the second takes it on retry.
+	first.config.Hotkey = "off"
+	first.applyHotkey()
+	if first.hotkeySent != "off" {
+		t.Fatalf("first off: %q", first.hotkeySent)
+	}
+	second.applyHotkey()
+	if second.hotkeySent != "shift+option" || second.view.Snapshot.HotkeyBusy {
+		t.Fatalf("second takeover: %q busy %v", second.hotkeySent, second.view.Snapshot.HotkeyBusy)
+	}
+	second.hotkeyLock.Release()
+}
+
 func TestHotkeyAbortAndMissingMicrophone(t *testing.T) {
 	a := &application{permissions: permission.Set{permission.Microphone: permission.Granted}, onboarded: true, config: settings{Hotkey: "shift+option"}}
 	a.onSpeech(bridge.Event{Type: "hotkey", Text: "down"})
@@ -445,7 +470,7 @@ func TestLoginMessage(t *testing.T) {
 		want string
 		ok   bool
 	}{
-		{true, nil, "已开启：下次登录 Mac 时 go-voice 会在菜单栏后台启动。", true},
+		{true, nil, "已开启：下次登录 Mac 时伊言会在菜单栏后台启动。", true},
 		{false, nil, "已关闭登录时打开。", true},
 		{true, errors.New("mygo: starting at login needs an app bundle; run the app with mygo dev or build it with mygo build"), "无法更改：请启动打包后的 go-voice.app，而不是直接运行可执行文件。", false},
 		{false, errors.New("mygo: Operation not permitted"), "无法关闭登录时打开：Operation not permitted", false},

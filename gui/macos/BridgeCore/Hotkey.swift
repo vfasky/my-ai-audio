@@ -12,20 +12,27 @@ public struct Modifiers: OptionSet, Sendable {
   /// alone.
   public static let function = Modifiers(rawValue: 16)
 
-  /// The chords go-voice offers, by the IDs of internal/hotkey; "off" and
-  /// unknown names have none.
+  /// The chord a hotkey name stands for, by the IDs of internal/hotkey: two
+  /// or more of shift, control, option and command joined by "+", in any
+  /// order. "off" and anything else have none.
   public static func chord(named name: String) -> Modifiers? {
-    switch name {
-    case "shift+option": return [.shift, .option]
-    case "control+option": return [.control, .option]
-    case "control+shift": return [.control, .shift]
-    case "command+option": return [.command, .option]
-    default: return nil
+    var chord: Modifiers = []
+    for part in name.split(separator: "+", omittingEmptySubsequences: false) {
+      let key: Modifiers
+      switch part {
+      case "shift": key = .shift
+      case "control": key = .control
+      case "option": key = .option
+      case "command": key = .command
+      default: return nil
+      }
+      if chord.contains(key) { return nil }
+      chord.insert(key)
     }
+    return chord.rawValue.nonzeroBitCount >= 2 ? chord : nil
   }
-  public static let names = [
-    "shift+option", "control+option", "control+shift", "command+option", "off",
-  ]
+  /// Whether `name` is a command value: a chord or "off".
+  public static func isValid(name: String) -> Bool { name == "off" || chord(named: name) != nil }
 }
 
 /// What a chord change means for push-to-talk.

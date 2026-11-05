@@ -27,7 +27,7 @@ UP 切换采集，DOWN 发送回车，OK 删除或取消，长按清空或取消
 
 当前 [Logo](../assets/brand/go-voice-logo.png) 是透明底白色 Gopher 与右下角麦克风。桌面图标将相同图稿放在黑色圆角底上；固件将透明区域叠合到既有 `#0B1018` 屏幕背景。原白色保持白色，原黑色区域变为透明，包括面部镂空。
 
-`tools/generate-go-voice-logo.mjs` 使用保留的[原始图稿](../assets/brand/go-voice-gopher-source.png)及麦克风叠图，生成桌面资源和[固件头文件](../assets/brand/go_voice_logo_asset.h)，步骤见[资源生成说明](../assets/README.zh_CN.md)。`main/ui_status.c` 嵌入恰好 8192 字节的 64×64 RGB565 常量，标题使用 LVGL Montserrat 20；不引入运行时图像解码器、缩放缓冲或额外字体分配。重新生成图片头文件后须重新构建固件。
+`tools/generate-go-voice-logo.mjs` 使用保留的[原始图稿](../assets/brand/yz-logo-source.png)，生成桌面资源和[固件头文件](../assets/brand/go_voice_logo_asset.h)，步骤见[资源生成说明](../assets/README.zh_CN.md)。`main/ui_status.c` 嵌入恰好 8192 字节的 64×64 RGB565 常量，标题使用 LVGL Montserrat 20；不引入运行时图像解码器、缩放缓冲或额外字体分配。重新生成图片头文件后须重新构建固件。
 
 ## 保护存储与许可
 

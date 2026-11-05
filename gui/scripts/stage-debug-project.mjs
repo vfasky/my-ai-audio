@@ -10,6 +10,7 @@ export async function stageDebugProject(source, staging) {
   config.name += "-debug";
   config.identifier += ".debug";
   config.out = join(root, "build/debug");
+  if (config.macos?.infoPlist?.CFBundleDisplayName) config.macos.infoPlist.CFBundleDisplayName += " 调试版";
   delete config.updates;
   // go:embed rejects symlinked files and directories. Copy the small resource
   // tree (including the staged helpers) while Go sources remain live links.

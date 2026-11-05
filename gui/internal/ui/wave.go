@@ -85,11 +85,10 @@ func abs32(v float32) float32 {
 	return v
 }
 
-// well is the single inset black tile holding the glyph row and its caption.
-func well(c *ui.Context, caption string, lit bool, paint func(p *ui.Painter, r ui.Rect)) {
-	ui.Column(c.Key("well")).Height(190).Radius(22).Background(colWell).
-		Border(1, ui.RGBA(255, 255, 255, 0.04)).Center().Gap(24).Children(func() {
+// well is the single inset black tile holding the glyph row.
+func well(c *ui.Context, lit bool, paint func(p *ui.Painter, r ui.Rect)) {
+	ui.Column(c.Key("well")).Height(160).Radius(22).Background(colWell).
+		Border(1, ui.RGBA(255, 255, 255, 0.04)).Center().Children(func() {
 		ui.Box(c).Size(waveWidth()+8, waveHeight).Draw(paint)
-		spaced(c, caption, pick(lit, colOrange, colMuted))
 	})
 }

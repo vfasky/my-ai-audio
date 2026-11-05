@@ -176,19 +176,13 @@ func TestRefinementSegmentsUpdateDraft(t *testing.T) {
 	if err := tt.Click("OpenAI 兼容接口"); err != nil || v.Config.Engine != "remote" {
 		t.Fatalf("engine: %v %q", err, v.Config.Engine)
 	}
-	if !tt.HasText("POST 端点 + /chat/completions") {
-		t.Fatalf("chat path missing: %q", tt.Texts())
-	}
-	if err := tt.Click("Responses"); err != nil || v.Config.API != refinement.APIResponses || !tt.HasText("POST 端点 + /responses") {
+	if err := tt.Click("Responses"); err != nil || v.Config.API != refinement.APIResponses {
 		t.Fatalf("api: %v %q", err, v.Config.API)
 	}
-	if !tt.HasText(modeHelp("light")) {
-		t.Fatalf("light help missing: %q", tt.Texts())
-	}
-	if err := tt.Click("结构化"); err != nil || v.Config.Mode != "structured" || !tt.HasText(modeHelp("structured")) {
+	if err := tt.Click("结构化"); err != nil || v.Config.Mode != "structured" {
 		t.Fatalf("mode: %v %q", err, v.Config.Mode)
 	}
-	if !tt.HasText("显式远端模式：最终转写和词库将发送到所填 HTTPS 端点；音频不发送。") {
+	if !tt.HasText("最终转写和词库将发送到所填端点，不含音频。") {
 		t.Fatal("remote disclosure missing")
 	}
 	if err := tt.Click("保存设置"); err != nil || rec.configure != 1 {
@@ -331,7 +325,7 @@ func TestRecognitionDropdownChoosesOnlineModel(t *testing.T) {
 	if err := tt.Click("支付宝 MaaS"); err != nil || v.ASR != asr.Choices[1].Config {
 		t.Fatalf("choose: %v %+v", err, v.ASR)
 	}
-	if !tt.HasText("在线识别：每次语音的音频会实时发送到支付宝 MaaS（maas-api.antdigital.com）转写，不发送词库，也不在本机保存音频。连接失败时本次语音结束，不会自动改用本地识别。") {
+	if !tt.HasText("音频将发送到支付宝 MaaS（maas-api.antdigital.com）转写，不会自动改用本地识别。") {
 		t.Fatalf("online disclosure missing: %q", tt.Texts())
 	}
 	v.asrSecret = "typed"
@@ -368,7 +362,7 @@ func TestRecognitionDropdownChoosesWholeRecording(t *testing.T) {
 	if err := tt.Click("Qwen3-ASR-Flash（非流式）"); err != nil || v.ASR != asr.Choices[3].Config {
 		t.Fatalf("choose: %v %+v", err, v.ASR)
 	}
-	if !tt.HasText("在线识别：每次语音的音频会在松开按键后整段发送到支付宝 MaaS") || !tt.HasText(asrHelp(v.ASR)) || !tt.HasText("测试连接") {
+	if !tt.HasText("音频将发送到支付宝 MaaS") || !tt.HasText("测试连接") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
 }
@@ -493,7 +487,7 @@ func TestRecognitionOmniKeepsProviderCredentialsSeparate(t *testing.T) {
 	if err := tt.Click("阿里云百炼 · Omni Realtime（WebSocket）"); err != nil || v.ASR.Engine != asr.EngineOmni {
 		t.Fatalf("choose Omni: %v %+v", err, v.ASR)
 	}
-	if v.asrSecret != "" || !tt.HasText("工作空间 ID") || !tt.HasText("华北2（北京）") || !tt.HasText("新加坡") || !tt.HasText("阿里云百炼") || !tt.HasText(asrHelp(v.ASR)) || tt.HasText("WebSocket 地址") {
+	if v.asrSecret != "" || !tt.HasText("工作空间 ID") || !tt.HasText("华北2（北京）") || !tt.HasText("新加坡") || !tt.HasText("阿里云百炼") || tt.HasText("WebSocket 地址") {
 		t.Fatalf("Omni form or previous provider key: %q", tt.Texts())
 	}
 	if v.ASR.Endpoint != "" || v.ASR.Model != "qwen3.8-omni-flash-realtime" || v.omniRegion != 0 {
@@ -537,7 +531,7 @@ func TestSidebarQuitsUnlessInstalling(t *testing.T) {
 	var rec intents
 	v := testView(&rec)
 	tt := newTester(v)
-	if err := tt.Click("退出 go-voice"); err != nil || rec.quits != 1 {
+	if err := tt.Click("退出 伊言"); err != nil || rec.quits != 1 {
 		t.Fatalf("quit: %v %d", err, rec.quits)
 	}
 	v.Snapshot.Install.Phase = "writing"
@@ -545,7 +539,7 @@ func TestSidebarQuitsUnlessInstalling(t *testing.T) {
 		t.Skip("writing is not a busy install phase")
 	}
 	tt.Frame()
-	_ = tt.Click("退出 go-voice")
+	_ = tt.Click("退出 伊言")
 	if rec.quits != 1 {
 		t.Fatal("quit during a firmware install")
 	}
@@ -621,7 +615,7 @@ func TestFirmwarePageShowsVersionsAndUpdate(t *testing.T) {
 	if !tt.HasText("0.1.0") || !tt.HasText("0.2.0") {
 		t.Fatalf("versions missing: %q", tt.Texts())
 	}
-	if !tt.HasText("设备固件 0.1.0 低于随附 0.2.0，建议安装。") {
+	if !tt.HasText("设备固件低于随附版本，建议安装。") {
 		t.Fatalf("update notice missing: %q", tt.Texts())
 	}
 	if !tt.HasText("更新") {
@@ -629,7 +623,7 @@ func TestFirmwarePageShowsVersionsAndUpdate(t *testing.T) {
 	}
 	v.Snapshot.Firmware = "0.2.0"
 	tt = newTester(v)
-	if !tt.HasText("设备已是随附固件 0.2.0。") || tt.HasText("建议安装") {
+	if tt.HasText("建议安装") {
 		t.Fatalf("current notice: %q", tt.Texts())
 	}
 }
@@ -650,7 +644,7 @@ func TestPermissionsOnboardingActions(t *testing.T) {
 	v := testView(&rec)
 	v.Snapshot.Permissions = permission.Set{permission.Bluetooth: permission.Denied, permission.Speech: permission.Undetermined, permission.Accessibility: permission.Granted}
 	tt := newTester(v)
-	if !tt.HasText("开始使用前还需授权：蓝牙、语音识别。") {
+	if !tt.HasText("还需授权：蓝牙、语音识别") {
 		t.Fatalf("banner missing: %q", tt.Texts())
 	}
 	if err := tt.Click("前往授权"); err != nil || v.Page != PermissionsPage {
@@ -665,7 +659,7 @@ func TestPermissionsOnboardingActions(t *testing.T) {
 	if len(rec.requested) == 0 || rec.requested[0] != permission.Speech || len(rec.settings) == 0 || rec.settings[0] != permission.Bluetooth {
 		t.Fatalf("intents %+v", rec)
 	}
-	if !tt.HasText("必需权限已完成 1 / 3 项。授权后无需重启，状态会自动刷新。") {
+	if !tt.HasText("1 / 3") {
 		t.Fatalf("summary: %q", tt.Texts())
 	}
 }
@@ -677,12 +671,12 @@ func TestGeneralPageTogglesOpenAtLogin(t *testing.T) {
 	if err := tt.Click("通用"); err != nil || v.Page != GeneralPage {
 		t.Fatalf("navigate: %v page %d", err, v.Page)
 	}
-	if err := tt.Click("登录时打开 go-voice"); err != nil || len(rec.login) != 1 || !rec.login[0] {
+	if err := tt.Click("登录时打开伊言"); err != nil || len(rec.login) != 1 || !rec.login[0] {
 		t.Fatalf("enable: %v %v", err, rec.login)
 	}
 	v.Snapshot.OpenAtLogin = true
 	tt.Frame()
-	if err := tt.Click("登录时打开 go-voice"); err != nil || len(rec.login) != 2 || rec.login[1] {
+	if err := tt.Click("登录时打开伊言"); err != nil || len(rec.login) != 2 || rec.login[1] {
 		t.Fatalf("disable: %v %v", err, rec.login)
 	}
 	v.Snapshot.OpenAtLogin, v.Snapshot.LoginApproval = false, true
@@ -707,15 +701,65 @@ func TestGeneralPageChoosesHotkeyAndAsksForMicrophone(t *testing.T) {
 	if err := tt.Click("⌃ + ⌥"); err != nil || len(rec.hotkeys) != 1 || rec.hotkeys[0] != "control+option" {
 		t.Fatalf("choose: %v %v", err, rec.hotkeys)
 	}
+	if err := tt.Click("关闭"); err != nil || len(rec.hotkeys) != 2 || rec.hotkeys[1] != "off" {
+		t.Fatalf("off: %v %v", err, rec.hotkeys)
+	}
 	v.Snapshot.Permissions = permission.Set{permission.Microphone: permission.Denied}
 	tt.Frame()
 	if err := tt.Click("打开系统设置"); err != nil || len(rec.settings) != 1 || rec.settings[0] != permission.Microphone {
 		t.Fatalf("settings: %v %v", err, rec.settings)
 	}
+	v.Snapshot.HotkeyBusy = true
+	tt.Frame()
+	if !tt.HasText("另一个伊言正在使用热键，退出后自动接管。") {
+		t.Fatalf("busy note: %q", tt.Texts())
+	}
 	v.Snapshot.Hotkey = "off"
 	tt.Frame()
-	if tt.HasText("麦克风未授权，热键无法录音。") {
+	if tt.HasText("麦克风未授权") {
 		t.Fatal("warning shown with the hotkey off")
+	}
+}
+
+func TestGeneralPageCustomHotkey(t *testing.T) {
+	var rec intents
+	v := testView(&rec)
+	v.Page = GeneralPage
+	v.Snapshot.Hotkey = "shift+option"
+	tt := newTester(v)
+	if tt.HasText("组合键") {
+		t.Fatal("picker open for a preset")
+	}
+	// Opening the picker keeps the chord in use.
+	if err := tt.Click("自定义"); err != nil || len(rec.hotkeys) != 1 || rec.hotkeys[0] != "shift+option" {
+		t.Fatalf("custom: %v %v", err, rec.hotkeys)
+	}
+	tt.Frame()
+	if !tt.HasText("组合键") {
+		t.Fatalf("picker: %q", tt.Texts())
+	}
+	// Adding Command saves the new chord; dropping to one modifier saves
+	// nothing and warns.
+	if err := tt.Click("⌘"); err != nil || rec.hotkeys[len(rec.hotkeys)-1] != "command+shift+option" {
+		t.Fatalf("add: %v %v", err, rec.hotkeys)
+	}
+	n := len(rec.hotkeys)
+	tt.Click("⇧")
+	tt.Click("⌥")
+	if len(rec.hotkeys) != n+1 || rec.hotkeys[n] != "command+option" {
+		t.Fatalf("shrink: %v", rec.hotkeys)
+	}
+	tt.Frame()
+	if !tt.HasText("至少选择两个修饰键，才不会和平时的打字冲突。") {
+		t.Fatalf("warning: %q", tt.Texts())
+	}
+	// A saved custom chord reopens the picker on it.
+	v2 := testView(&rec)
+	v2.Page = GeneralPage
+	v2.Snapshot.Hotkey = "control+shift+option"
+	tt2 := newTester(v2)
+	if !tt2.HasText("组合键") {
+		t.Fatalf("saved custom: %q", tt2.Texts())
 	}
 }
 
@@ -764,7 +808,7 @@ func TestRefinementStreamAndProviderRoutingDraft(t *testing.T) {
 	v := testView(&rec)
 	v.Page = 3
 	tt := newTester(v)
-	for _, text := range []string{"OpenAI 兼容接口", "供应商路由（可选）", "流式输出", "测试连接", "保存到钥匙串", "端点", "API key"} {
+	for _, text := range []string{"OpenAI 兼容接口", "供应商路由", "流式输出", "测试连接", "保存到钥匙串", "端点", "API key"} {
 		if text != "OpenAI 兼容接口" && tt.HasText(text) {
 			t.Fatalf("local engine shows %q", text)
 		}
@@ -776,9 +820,23 @@ func TestRefinementStreamAndProviderRoutingDraft(t *testing.T) {
 		t.Fatalf("engine: %v %+v", err, v.Config)
 	}
 	tt.Frame()
-	if !tt.HasText("供应商路由（可选）") || !tt.HasText("流式输出") {
+	if !tt.HasText("供应商路由") || !tt.HasText("流式输出") || tt.HasText("优先顺序") {
 		t.Fatalf("texts %q", tt.Texts())
 	}
+	if err := tt.Click("供应商路由"); err != nil || !v.routingOpen {
+		t.Fatalf("routing: %v", err)
+	}
+	tt.Frame()
+	if !tt.HasText("优先顺序") {
+		t.Fatalf("routing not expanded: %q", tt.Texts())
+	}
+	if err := tt.Click("供应商路由"); err != nil || v.routingOpen {
+		t.Fatalf("fold: %v", err)
+	}
+	if err := tt.Click("供应商路由"); err != nil || !v.routingOpen {
+		t.Fatalf("expand: %v", err)
+	}
+	tt.Frame()
 	if err := tt.Click("以流式请求"); err != nil || !v.Config.Stream {
 		t.Fatalf("stream: %v %+v", err, v.Config)
 	}

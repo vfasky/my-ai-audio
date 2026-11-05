@@ -26,7 +26,7 @@ class GoVoiceContractTests(unittest.TestCase):
             for path in consumers:
                 self.assertIn(expected, path.read_text(), str(path))
                 self.assertNotIn('7f0e000', path.read_text(), str(path))
-        self.assertIn('DEVICE_NAME = "Go Voice"', firmware)
+        self.assertIn('DEVICE_NAME = "伊言"', firmware)
 
     def test_firmware_version_is_single_source(self):
         header = (ROOT / 'main/fw_version.h').read_text()
@@ -43,10 +43,10 @@ class GoVoiceContractTests(unittest.TestCase):
 
     def test_logo_storage_and_wiring(self):
         asset = (ROOT / 'assets/brand/go_voice_logo_asset.h').read_text()
-        data = asset.split('s_go_voice_logo_data[8192] = {', 1)[1]
+        data = asset.split('s_go_voice_logo_data[8192] = {', 1)[1].split('};', 1)[0]
         pixels = bytes(int(value, 16) for value in re.findall(r'0x([0-9a-f]{2})', data))
         self.assertEqual(len(pixels), 64 * 64 * 2)
-        source = (ROOT / 'assets/brand/go-voice-logo.png').read_bytes()
+        source = (ROOT / 'assets/brand/yz-logo-source.png').read_bytes()
         self.assertIn(hashlib.sha256(source).hexdigest(), asset)
         # Count RGB565 colors, not distinct byte values: a monochrome
         # foreground composited onto the UI background is valid artwork.
@@ -57,7 +57,8 @@ class GoVoiceContractTests(unittest.TestCase):
         cmake = (ROOT / 'main/CMakeLists.txt').read_text()
         self.assertIn('#include "go_voice_logo_asset.h"', ui)
         self.assertIn('.data = s_go_voice_logo_data', ui)
-        self.assertIn('"Go Voice",\n                              &lv_font_montserrat_20', ui)
+        self.assertIn('.data = s_yiyan_caption_data', ui)
+        self.assertNotIn('"Go Voice"', ui)
         self.assertIn('../assets/brand', cmake)
         self.assertNotIn('vokie_title', cmake)
         self.assertFalse((ROOT / 'main/vokie_symbol_asset.h').exists())

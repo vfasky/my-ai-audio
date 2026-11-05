@@ -37,7 +37,7 @@ func (v *View) permissionBanner(c *ui.Context, missing []permission.Name) {
 	}
 	ui.Row(c.Key("permission-banner")).Padding(12, 12, 12, 16).Gap(12).Radius(14).Background(colOrangeSoft).Children(func() {
 		ui.Icon(c, iconShield).Size(16, 16).TextColor(colOrange)
-		ui.Text(c, "开始使用前还需授权："+strings.Join(names, "、")+"。").FontSize(13).TextColor(ui.Hex("#FFC4A3")).Grow(1)
+		ui.Text(c, "还需授权："+strings.Join(names, "、")).FontSize(13).TextColor(ui.Hex("#FFC4A3")).Grow(1)
 		if smallPill(c, "goto-permissions", "前往授权", pillPrimary, nil, false) {
 			v.Page = PermissionsPage
 		}
@@ -59,15 +59,8 @@ func (v *View) permissions(c *ui.Context) {
 			ui.Box(c).Size(52, 52).Radius(16).Background(colWell).Border(1, colHairline).Center().Children(func() {
 				ui.Icon(c, iconShield).Size(24, 24).TextColor(pick(done, colGreen, colOrange))
 			})
-			ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-				title := "完成授权后即可开始使用"
-				if done {
-					title = "必需权限均已授权"
-				}
-				ui.Text(c, title).FontSize(19).FontWeight(500)
-				ui.Text(c, fmt.Sprintf("必需权限已完成 %d / %d 项。授权后无需重启，状态会自动刷新。", required-len(missing), required)).
-					FontSize(13).TextColor(colSubtle).FontFeatures("tnum")
-			})
+			ui.Text(c, fmt.Sprintf("%d / %d", required-len(missing), required)).
+				FontSize(19).FontWeight(500).FontFeatures("tnum").Grow(1).AlignSelf(ui.Center)
 		})
 		ui.Progress(c, float64(required-len(missing))/float64(required)).Label("必需权限进度")
 	})
@@ -85,7 +78,6 @@ func (v *View) permissions(c *ui.Context) {
 			}
 		}
 	})
-	notice(c, "permission-note", "辅助功能与自动化需要在系统设置中打开 go-voice 的开关。只有按住麦克风热键时才会打开 Mac 麦克风；关闭热键后不需要麦克风权限。", false)
 }
 
 func (v *View) permissionRow(c *ui.Context, n permission.Name, st permission.State) {
@@ -95,10 +87,9 @@ func (v *View) permissionRow(c *ui.Context, n permission.Name, st permission.Sta
 		})
 		ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
 			ui.Text(c, permission.Title(n)).FontSize(14).FontWeight(500).SingleLine()
-			ui.Text(c, permission.Purpose(n)).FontSize(12).TextColor(colMuted).LineHeight(1.4)
 			if n == permission.Accessibility && st != permission.Granted {
 				// macOS keeps the old grant after a re-signed build but refuses it.
-				ui.Text(c, "若系统设置中已打开仍显示未授权：先在列表中选中 go-voice 并点“−”移除，再点“授权”重新添加。").
+				ui.Text(c, "已打开仍显示未授权：在列表中移除伊言后重新授权。").
 					FontSize(11.5).TextColor(ui.Hex("#FF9A62")).LineHeight(1.4)
 			}
 		})

@@ -9,6 +9,10 @@ use serialport::{SerialPortInfo, SerialPortType};
 use std::io::{self, Write};
 use std::time::Duration;
 
+/// An error after the on-device checksum passed concerns only the reset.
+fn should_finish_after_error(verified: bool) -> bool {
+    verified
+}
 fn candidates() -> Result<Vec<SerialPortInfo>> {
     let mut ports = serialport::available_ports()
         .map_err(|_| Failure("SCAN_FAILED", "Cannot enumerate USB ports"))?;
@@ -189,14 +193,23 @@ fn install(
         verification_started: false,
     };
     // Sole flash mutation: one factory app segment. espflash pads at most three 0xff bytes.
-    flasher
-        .write_bin_to_flash(plan.offset, &firmware, &mut callbacks)
-        .map_err(|_| {
-            Failure(
+    let written = flasher.write_bin_to_flash(plan.offset, &firmware, &mut callbacks);
+    if let Err(error) = written {
+        // The device-side MD5 check runs before the final flash-end and reset
+        // commands. Once it has passed the image is in flash and an error can
+        // only come from finishing: the native USB Serial/JTAG port vanishes
+        // as the chip resets, which the library reports as a failed read.
+        // Retry the reset once and carry on; an error before verification
+        // remains a failed installation.
+        if !should_finish_after_error(callbacks.verified) {
+            drop(error);
+            return Err(Failure(
                 "FLASH_FAILED",
-                "Application write, device verification, or reset failed",
-            )
-        })?;
+                "Application write or device verification failed",
+            ));
+        }
+        let _ = flasher.connection().reset_after(false, Chip::Esp32c3);
+    }
     if !callbacks.verified {
         return Err(Failure(
             "VERIFICATION_UNAVAILABLE",
@@ -232,7 +245,7 @@ fn run() -> io::Result<()> {
                     .into_iter()
                     .map(|p| Device {
                         id: p.port_name,
-                        name: "Go Voice USB Serial/JTAG",
+                        name: "伊言 USB Serial/JTAG",
                     })
                     .collect();
                 emit(&mut out, &Event::Ports { devices })
@@ -270,6 +283,12 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_verified_writes_finish_after_an_error() {
+        assert!(should_finish_after_error(true));
+        assert!(!should_finish_after_error(false));
+    }
 
     #[test]
     fn callbacks_report_ordered_verification_without_false_completion() {

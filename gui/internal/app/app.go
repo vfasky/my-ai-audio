@@ -17,6 +17,7 @@ import (
 	"github.com/vfasky/my-ai-audio/gui/internal/jev"
 	"github.com/vfasky/my-ai-audio/gui/internal/permission"
 	"github.com/vfasky/my-ai-audio/gui/internal/platform/bridge"
+	"github.com/vfasky/my-ai-audio/gui/internal/platform/filelock"
 	"github.com/vfasky/my-ai-audio/gui/internal/platform/keychain"
 	"github.com/vfasky/my-ai-audio/gui/internal/protocol"
 	"github.com/vfasky/my-ai-audio/gui/internal/refinement"
@@ -87,6 +88,12 @@ type application struct {
 	live   atomic.Bool
 	inPost bool
 	paint  paintKind
+	// hotkeyLock is held while this copy of go-voice watches the hotkey:
+	// the debug and release builds share the settings, and both recording
+	// one hold would insert it twice. hotkeySent is the chord SpeechBridge
+	// was last given.
+	hotkeyLock *filelock.Lock
+	hotkeySent string
 }
 
 type paintKind uint8
@@ -123,7 +130,7 @@ func Run(icon, tray []byte) {
 		a.atLogin = mygo.App.WasOpenedAtLogin()
 		a.initialize()
 		a.window = mygo.NewWindow(mygo.WindowOptions{
-			Title: "go-voice", Width: 1120, Height: 840, MinWidth: 920, MinHeight: 660, Hidden: a.atLogin,
+			Title: "伊言", Width: 1120, Height: 840, MinWidth: 920, MinHeight: 660, Hidden: a.atLogin,
 			TitleBarStyle: mygo.TitleBarHiddenInset, TitleBarHeight: appui.TitleBarHeight,
 			BackgroundColor: "#0A0A0A",
 			Content:         nativeui.View(a.view.Draw),
@@ -144,7 +151,7 @@ func Run(icon, tray []byte) {
 		// The capsule is drawn without a shadow, and the panel has none either:
 		// macOS would trace one around the transparent window's alpha.
 		a.hud = mygo.NewWindow(mygo.WindowOptions{
-			Title: "go-voice dictation", Panel: true, Hidden: true, Frameless: true, Transparent: true,
+			Title: "伊言听写", Panel: true, Hidden: true, Frameless: true, Transparent: true,
 			DisableResize: true, DisableShadow: true, Width: appui.HUDWidth, Height: appui.HUDHeight,
 			Content: nativeui.View(a.view.DrawHUD),
 		})
@@ -169,6 +176,8 @@ func Run(icon, tray []byte) {
 			}
 		}
 		a.bindEscape(false)
+		a.hotkeyLock.Release()
+		a.hotkeyLock = nil
 		cancel()
 		if a.bluetooth != nil {
 			a.bluetooth.Close()
@@ -186,12 +195,12 @@ func (a *application) startTray(icon []byte) {
 	tray, err := mygo.NewTray(mygo.TrayOptions{
 		Icon:           icon,
 		IconIsTemplate: true,
-		ToolTip:        "go-voice",
+		ToolTip:        "伊言",
 		Menu: mygo.NewMenu([]*mygo.MenuItem{
 			{Label: "设置…", Accelerator: "CmdOrCtrl+,", Click: func(*mygo.MenuItem, *mygo.Window) { a.showMain() }},
 			{Label: "检查更新…", Click: func(*mygo.MenuItem, *mygo.Window) { a.checkForUpdates() }},
 			mygo.Separator(),
-			{Label: "退出 go-voice", Accelerator: "CmdOrCtrl+Q", Click: func(*mygo.MenuItem, *mygo.Window) { mygo.App.Quit() }},
+			{Label: "退出 伊言", Accelerator: "CmdOrCtrl+Q", Click: func(*mygo.MenuItem, *mygo.Window) { mygo.App.Quit() }},
 		}),
 	})
 	if err != nil {
@@ -256,7 +265,7 @@ func loginNeedsApproval(err error) bool {
 func loginMessage(open bool, err error) (string, bool) {
 	switch {
 	case err == nil && open:
-		return "已开启：下次登录 Mac 时 go-voice 会在菜单栏后台启动。", true
+		return "已开启：下次登录 Mac 时伊言会在菜单栏后台启动。", true
 	case err == nil:
 		return "已关闭登录时打开。", true
 	case loginNeedsApproval(err):
@@ -298,7 +307,7 @@ func updatesUnavailableDetail(version string, development bool) string {
 	if development || version == "" {
 		return "开发版不会自动更新。请从 GitHub Releases 安装正式版。"
 	}
-	return "当前版本 " + version + "。go-voice 无法写入当前安装位置，请将它移到“应用程序”或 ~/Applications 后再检查更新。"
+	return "当前版本 " + version + "。伊言无法写入当前安装位置，请将它移到“应用程序”或 ~/Applications 后再检查更新。"
 }
 func (a *application) post(fn func()) {
 	mygo.RunOnMain(func() {
@@ -783,7 +792,7 @@ func (a *application) startNative() {
 		a.sendBluetooth(map[string]any{"type": "set-preferred-device", "deviceId": a.config.Peripheral})
 	}
 	a.sendSpeech(map[string]any{"type": "warmup"})
-	a.sendSpeech(map[string]any{"type": "hotkey", "text": a.config.Hotkey})
+	a.applyHotkey()
 	a.queryPermissions()
 	go func() {
 		// Grants change in System Settings without telling the app: re-read
@@ -797,6 +806,9 @@ func (a *application) startNative() {
 			case <-ticker.C:
 				a.post(func() {
 					a.readLoginItem()
+					if a.view.Snapshot.HotkeyBusy {
+						a.applyHotkey()
+					}
 					micMissing := hotkey.Enabled(a.config.Hotkey) && a.permissions[permission.Microphone] != permission.Granted
 					if len(a.permissions.Missing()) > 0 || a.permissions[permission.Automation] != permission.Granted || micMissing {
 						a.queryPermissions()
@@ -1151,7 +1163,7 @@ func (a *application) importVocabulary() {
 			}
 			res, err := a.store.Import(b)
 			if err != nil {
-				a.setVocabFeedback("导入失败：这不是 go-voice 导出的词库 JSON 文件。", false)
+				a.setVocabFeedback("导入失败：这不是 伊言导出的词库 JSON 文件。", false)
 				return
 			}
 			a.saveVocabulary()
@@ -1401,7 +1413,7 @@ func (a *application) refine(e device.Effect) {
 
 const (
 	micDenied    = "麦克风未授权：请到“权限”页打开麦克风后重试"
-	micRequested = "请在系统弹窗中允许 go-voice 使用麦克风，然后再按住热键"
+	micRequested = "请在系统弹窗中允许伊言使用麦克风，然后再按住热键"
 )
 
 // onHotkey records with the Mac microphone while the chord is held:
@@ -1436,12 +1448,53 @@ func (a *application) onHotkey(state string) {
 	}
 }
 
+// lockHotkey takes the hotkey for this copy of go-voice; tests replace it.
+var lockHotkey = func(directory string) (*filelock.Lock, error) {
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		return nil, err
+	}
+	return filelock.TryLock(filepath.Join(directory, "hotkey.lock"))
+}
+
+// applyHotkey gives SpeechBridge the chord when this copy of go-voice owns
+// the hotkey, and turns it off otherwise. While another copy owns it, the
+// permission ticker calls this again, so the hotkey moves here once that
+// copy quits.
+func (a *application) applyHotkey() {
+	chord := hotkey.Off
+	busy := false
+	if hotkey.Enabled(a.config.Hotkey) {
+		if a.hotkeyLock == nil {
+			lock, err := lockHotkey(a.directory)
+			if err == nil {
+				a.hotkeyLock = lock
+			}
+		}
+		if a.hotkeyLock != nil {
+			chord = a.config.Hotkey
+		} else {
+			busy = true
+		}
+	} else {
+		a.hotkeyLock.Release()
+		a.hotkeyLock = nil
+	}
+	if a.view.Snapshot.HotkeyBusy != busy {
+		a.view.Snapshot.HotkeyBusy = busy
+		a.mark(paintView)
+	}
+	if chord != a.hotkeySent {
+		a.hotkeySent = chord
+		a.sendSpeech(map[string]any{"type": "hotkey", "text": chord})
+	}
+}
+
 // setHotkey saves the chord and hands it to SpeechBridge; turning it off
 // ends a microphone session.
 func (a *application) setHotkey(id string) {
 	a.config.Hotkey = hotkey.Normalize(id)
 	a.saveSettings()
-	a.sendSpeech(map[string]any{"type": "hotkey", "text": a.config.Hotkey})
+	a.applyHotkey()
 	if !hotkey.Enabled(a.config.Hotkey) && a.coordinator.Mic {
 		a.effects(a.coordinator.Cancel("已关闭麦克风热键"))
 	}

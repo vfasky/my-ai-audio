@@ -29,7 +29,7 @@ public struct Command: Decodable {
     if type == "request-permission", !Permission.speechNames.contains(text ?? "") {
       throw BridgeError.invalid
     }
-    if type == "hotkey", !Modifiers.names.contains(text ?? "") { throw BridgeError.invalid }
+    if type == "hotkey", !Modifiers.isValid(name: text ?? "") { throw BridgeError.invalid }
   }
   public func pcm() throws -> Data {
     guard let value = payloadBase64, value.count == 856, let data = Data(base64Encoded: value),

@@ -26,7 +26,7 @@ Control 只接受有响应写。无响应写和读取 Control 不属于 V1 契�
 Control 值是带 `v: 1` 的完整 UTF-8 JSON 对象，最长 182 字节。设备到主机的消息如下：
 
 ```json
-{"v":1,"type":"hello","device":"ai-passport","fw":"0.2.0","codec":"ima-adpcm","sampleRate":16000,"channels":1,"frameMs":20}
+{"v":1,"type":"hello","device":"ai-passport","fw":"0.3.0","codec":"ima-adpcm","sampleRate":16000,"channels":1,"frameMs":20}
 {"v":1,"type":"ptt_down","sessionId":123,"seq":0}
 {"v":1,"type":"ptt_up","sessionId":123,"seq":1,"finalSequence":7}
 {"v":1,"type":"button_event","button":"down","event":"click","durationMs":0,"seq":2}

@@ -237,7 +237,7 @@ func (s *State) Apply(e Event) bool {
 func ErrorLabel(code string) string {
 	switch code {
 	case "INVALID_MANIFEST", "INVALID_IMAGE", "HASH_MISMATCH", "INVALID_FILE", "FILE_READ_FAILED":
-		return "随应用提供的固件未通过完整性检查，请重新安装 go-voice。"
+		return "随应用提供的固件未通过完整性检查，请重新安装 伊言。"
 	case "SCAN_FAILED", "PORT_NOT_ALLOWED":
 		return "兼容 USB 设备已断开或不可用，请重新连接并扫描。"
 	case "CONNECT_FAILED":

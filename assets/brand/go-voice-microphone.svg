@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <title>Go Voice microphone</title>
-  <desc>A white microphone in the lower-right corner, indicating voice input.</desc>
-  <rect x="810" y="690" width="56" height="100" rx="28" fill="#FFFFFF"/>
-  <g fill="none" stroke="#FFFFFF" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M784 746V766A54 54 0 0 0 892 766V746"/>
-    <path d="M838 820V860M808 860H868"/>
-  </g>
-</svg>

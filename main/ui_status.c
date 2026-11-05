@@ -40,6 +40,11 @@
 #define UI_LOGO_X ((BSP_LCD_W - UI_LOGO_SIZE) / 2)
 // Keep the 64 px brand asset in the existing logo slot.
 #define UI_LOGO_Y 132
+// "伊言" is a pre-rendered bitmap: the enabled Montserrat fonts have no CJK glyphs.
+#define UI_CAPTION_W 56
+#define UI_CAPTION_H 28
+#define UI_CAPTION_X ((BSP_LCD_W - UI_CAPTION_W) / 2)
+#define UI_CAPTION_Y 243
 #define UI_STATE_Y 53
 #define UI_DETAIL_Y 86
 #define UI_HINT_FADE_IN_MS 160
@@ -151,9 +156,21 @@ static const lv_image_dsc_t s_go_voice_logo = {
     .data = s_go_voice_logo_data,
 };
 
+static const lv_image_dsc_t s_yiyan_caption = {
+    .header = {
+        .magic = LV_IMAGE_HEADER_MAGIC,
+        .cf = LV_COLOR_FORMAT_NATIVE,
+        .w = UI_CAPTION_W,
+        .h = UI_CAPTION_H,
+        .stride = UI_CAPTION_W * 2,
+    },
+    .data_size = sizeof(s_yiyan_caption_data),
+    .data = s_yiyan_caption_data,
+};
+
 static void draw_go_voice(void)
 {
-    // User-provided Go Voice artwork, composited onto UI_BG as RGB565.
+    // Brand mark artwork, composited onto UI_BG as RGB565.
     lv_obj_t *mark = lv_image_create(s_screen);
     lv_image_set_src(mark, &s_go_voice_logo);
     lv_obj_set_pos(mark, UI_LOGO_X, UI_LOGO_Y);
@@ -247,7 +264,7 @@ static void render_state(const ui_idle_t *state, ui_status_hint_t hints)
     const uint32_t color = state_color(state->state);
     lv_label_set_text(s_state, state_name(state->state));
     lv_obj_set_style_text_color(s_state, lv_color_hex(color), 0);
-    lv_label_set_text(s_detail, state->message[0] ? state->message : "Go Voice is ready");
+    lv_label_set_text(s_detail, state->message[0] ? state->message : "Ready");
     set_button_hints_visible(hints);
     lv_obj_set_style_opa(s_screen, LV_OPA_COVER, 0);
 }
@@ -352,12 +369,10 @@ void ui_status_init(void)
     lv_obj_set_style_bg_color(s_screen, lv_color_hex(UI_BG), 0);
     lv_obj_set_style_bg_opa(s_screen, LV_OPA_COVER, 0);
 
-    // Center the bold brand title below the logo and the upper status group.
-    lv_obj_t *caption = label(s_screen, "Go Voice",
-                              &lv_font_montserrat_20,
-                              UI_MUTED, UI_HEADER_W);
-    lv_label_set_long_mode(caption, LV_LABEL_LONG_CLIP);
-    lv_obj_set_pos(caption, UI_HEADER_X, UI_HEADER_Y);
+    // Center the brand caption below the logo and the upper status group.
+    lv_obj_t *caption = lv_image_create(s_screen);
+    lv_image_set_src(caption, &s_yiyan_caption);
+    lv_obj_set_pos(caption, UI_CAPTION_X, UI_CAPTION_Y);
     draw_go_voice();
     draw_button_rail();
     draw_battery();

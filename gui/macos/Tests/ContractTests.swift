@@ -38,6 +38,10 @@ final class ContractTests: XCTestCase {
       try Command(data: Data(#"{"type":"hotkey","text":"shift+option"}"#.utf8)).text, "shift+option")
     XCTAssertNoThrow(try Command(data: Data(#"{"type":"hotkey","text":"off"}"#.utf8)))
     XCTAssertThrowsError(try Command(data: Data(#"{"type":"hotkey","text":"command+q"}"#.utf8)))
+    XCTAssertNoThrow(
+      try Command(data: Data(#"{"type":"hotkey","text":"command+control+shift"}"#.utf8)))
+    XCTAssertThrowsError(try Command(data: Data(#"{"type":"hotkey","text":"shift"}"#.utf8)))
+    XCTAssertThrowsError(try Command(data: Data(#"{"type":"hotkey","text":"shift+shift"}"#.utf8)))
     XCTAssertNoThrow(try Command(data: Data(#"{"type":"mic-start","sessionId":2}"#.utf8)))
     XCTAssertThrowsError(try Command(data: Data(#"{"type":"mic-stop"}"#.utf8)))
     XCTAssertNoThrow(
@@ -78,6 +82,13 @@ final class ContractTests: XCTestCase {
     XCTAssertEqual(t.set(nil), .abort)
     XCTAssertNil(t.flags([.shift, .option]))
     XCTAssertNil(Modifiers.chord(named: "off"))
+    XCTAssertNil(Modifiers.chord(named: "shift"))
+    XCTAssertNil(Modifiers.chord(named: "shift+shift"))
+    XCTAssertNil(Modifiers.chord(named: "shift+"))
+    XCTAssertEqual(Modifiers.chord(named: "option+command"), [.command, .option])
+    XCTAssertEqual(
+      Modifiers.chord(named: "command+control+shift+option"),
+      [.command, .control, .shift, .option])
   }
   func testChordWithAMouseButtonOrKeyAlreadyDownDoesNotRecord() {
     var t = ChordTracker(chord: Modifiers.chord(named: "shift+option"))

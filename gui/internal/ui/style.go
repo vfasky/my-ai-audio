@@ -87,6 +87,7 @@ var (
 	iconDownload = icon(`<path d="M8 2.5v8M4.8 7.5L8 10.7l3.2-3.2M3 13.5h10"/>`)
 	iconCaption  = icon(`<rect x="1.8" y="3" width="12.4" height="10" rx="2.2"/><path d="M4.5 7h3M9.5 7h2M4.5 10h2M8.5 10h3"/>`)
 	iconChevron  = icon(`<path d="M4.5 6.2L8 9.8l3.5-3.6"/>`)
+	iconChevronR = icon(`<path d="M6.2 4.5L9.8 8l-3.6 3.5"/>`)
 	iconSliders  = icon(`<path d="M2.5 4.5h1.2M7.3 4.5h6.2M2.5 11.5h6.2M12.3 11.5h1.2"/><circle cx="5.5" cy="4.5" r="1.8"/><circle cx="10.5" cy="11.5" r="1.8"/>`)
 )
 
@@ -174,11 +175,6 @@ func group(c *ui.Context, key, title string, accessory func(), rows func()) {
 // row is one line of a group.
 func row(c *ui.Context, key string, fn func()) ui.Element {
 	return ui.Row(c.Key(key)).Padding(12, 16).Gap(12).MinHeight(48).Children(fn)
-}
-
-// spaced is the tracked caption under the waveform wells.
-func spaced(c *ui.Context, s string, color ui.Color) ui.Element {
-	return ui.Text(c, s).FontSize(12).FontWeight(500).LetterSpacing(2.6).TextColor(color).SingleLine()
 }
 
 // notice is an inline callout tinted by its severity.

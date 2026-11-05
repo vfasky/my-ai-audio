@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"fmt"
-
 	"github.com/egoist/mygo/ui"
 	"github.com/vfasky/my-ai-audio/gui/internal/jev"
 )
@@ -31,18 +29,13 @@ func jevAccount(c jev.Config) string {
 // runs at TypeSafe or at any provider of its System One API.
 func (v *View) judge(c *ui.Context) {
 	s := v.Snapshot
-	notice(c, "jev-about", fmt.Sprintf("先在本地分词，再结合完整识别文字，比较同一位置的同音候选词和原文。Jev 选中的候选词概率 ≥ %.0f%% 才直接替换；保留原文的概率达到同一标准时，让 AI 润色不要改；拿不准的仍由 AI 润色判断。只处理两个字以上的中文词条；英文词条和替换词不受影响。", jev.Replace*100), false)
-	group(c, "jev", "Jev 词库判断", nil, func() {
+	group(c, "jev", "", nil, func() {
 		row(c, "jev-enabled", func() {
-			ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
-				ui.Text(c, "用 Jev 判断同音词替换").FontSize(14).FontWeight(500).SingleLine()
-				ui.Text(c, fmt.Sprintf("每次语音结束、AI 润色之前运行；关闭 AI 润色时也生效。超过 %d 秒或失败时跳过，按原流程处理。", int(jev.Timeout.Seconds()))).
-					FontSize(12).TextColor(colMuted).LineHeight(1.4)
-			})
+			label(c, "同音词判断")
 			ui.Switch(c, &v.Jev.Enabled).Label("启用 Jev 词库判断")
 		})
 		row(c, "jev-presets", func() {
-			label(c, "服务商", "兼容 TypeSafe System One 接口（POST /v1/systemone）的服务都可以填写。")
+			label(c, "服务商")
 			current := jev.Normalize(v.Jev)
 			for _, p := range jevPresets {
 				on := current.Endpoint == p.config.Endpoint && current.Model == p.config.Model
@@ -58,11 +51,11 @@ func (v *View) judge(c *ui.Context) {
 			ui.TextInput(c, &v.Jev.Model).Placeholder(jev.DefaultModel).Grow(1).Label("Jev 模型")
 		})
 		field(c, "API key", func() {
-			ui.TextInput(c, &v.jevSecret).Password().Placeholder(v.keyPlaceholder(jevAccount(v.Jev), "按接口地址分别保存到 macOS 钥匙串")).Grow(1).Label("Jev API key")
+			ui.TextInput(c, &v.jevSecret).Password().Placeholder(v.keyPlaceholder(jevAccount(v.Jev), "")).Grow(1).Label("Jev API key")
 		})
 	})
 	if v.Jev.Enabled {
-		notice(c, "jev-privacy", "开启后，每次有同音候选命中时，会把本次完整识别文字、分词结果和命中的候选词发送到 "+v.Jev.Host()+" 判断。不发送音频和完整词库；没有命中时不发送。文字过长时跳过，不截断上下文。", true)
+		notice(c, "jev-privacy", "命中候选时，识别文字将发送到 "+v.Jev.Host()+"，不含音频和完整词库。", true)
 	}
 	ui.Row(c).Gap(12).Wrap().GapY(12).Children(func() {
 		if pill(c, "jev-delete-key", "删除凭据", pillDanger, nil, nil, false) {

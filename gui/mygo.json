@@ -1,7 +1,7 @@
 {
   "name": "go-voice",
   "identifier": "yz.sh.mygo-go-voice",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "icon": "resources/icon.png",
   "out": "build/debug",
   "resources": ["firmware", "licenses", "docs/THIRD_PARTY_NOTICES.md", "docs/THIRD_PARTY_NOTICES.zh_CN.md"],
@@ -19,11 +19,12 @@
       "native/SpeechBridge.app": "resources/entitlements.plist"
     },
     "infoPlist": {
+      "CFBundleDisplayName": "伊言",
       "LSUIElement": true,
       "NSBluetoothAlwaysUsageDescription": "Connect to your selected FoloToy AI Passport to receive voice audio.",
       "NSSpeechRecognitionUsageDescription": "Transcribe audio received from your FoloToy AI Passport on this Mac.",
       "NSAppleEventsUsageDescription": "Insert your completed dictation into the application you selected.",
-      "NSMicrophoneUsageDescription": "Record your voice with the Mac microphone only while you hold the go-voice hotkey."
+      "NSMicrophoneUsageDescription": "Record your voice with the Mac microphone only while you hold the 伊言 hotkey."
     }
   }
 }

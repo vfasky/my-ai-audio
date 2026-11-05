@@ -32,7 +32,7 @@ Control values are complete UTF-8 JSON objects with `v: 1` and a maximum size
 of 182 bytes. Device-to-host messages are:
 
 ```json
-{"v":1,"type":"hello","device":"ai-passport","fw":"0.2.0","codec":"ima-adpcm","sampleRate":16000,"channels":1,"frameMs":20}
+{"v":1,"type":"hello","device":"ai-passport","fw":"0.3.0","codec":"ima-adpcm","sampleRate":16000,"channels":1,"frameMs":20}
 {"v":1,"type":"ptt_down","sessionId":123,"seq":0}
 {"v":1,"type":"ptt_up","sessionId":123,"seq":1,"finalSequence":7}
 {"v":1,"type":"button_event","button":"down","event":"click","durationMs":0,"seq":2}

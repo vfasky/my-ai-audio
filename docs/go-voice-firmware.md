@@ -27,7 +27,7 @@ The standalone Vokie plugin is no longer included in this repository. The deskto
 
 The [logo](../assets/brand/go-voice-logo.png) is a white Gopher and lower-right microphone on transparency. The desktop icon places that artwork on a black rounded tile; firmware composites transparency onto the existing `#0B1018` screen background. Original white areas remain white, and black areas become transparent, including facial cutouts.
 
-`tools/generate-go-voice-logo.mjs` uses the retained [source artwork](../assets/brand/go-voice-gopher-source.png) and microphone overlay to generate desktop assets and the [firmware header](../assets/brand/go_voice_logo_asset.h). See [asset generation](../assets/README.md). `main/ui_status.c` embeds exactly 8192 constant bytes of 64×64 RGB565 pixels. The title uses LVGL Montserrat 20. No runtime image decoder, resize buffer or extra font allocation is introduced. Rebuild the firmware after regenerating its image header.
+`tools/generate-go-voice-logo.mjs` uses the retained [source artwork](../assets/brand/yz-logo-source.png) to generate desktop assets and the [firmware header](../assets/brand/go_voice_logo_asset.h). See [asset generation](../assets/README.md). `main/ui_status.c` embeds exactly 8192 constant bytes of 64×64 RGB565 pixels. The title uses LVGL Montserrat 20. No runtime image decoder, resize buffer or extra font allocation is introduced. Rebuild the firmware after regenerating its image header.
 
 ## Protected storage and licensing
 

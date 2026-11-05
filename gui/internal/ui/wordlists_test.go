@@ -13,9 +13,6 @@ func TestPublicWordlistsDefaultsToggleAndSave(t *testing.T) {
 	v.Actions.ConfigurePacks = func(c wordlists.Config) { saved = append(saved, c) }
 	v.Page = 1
 	tt := newTester(v)
-	if !tt.HasText("IT 行业包 12854 词") {
-		t.Fatalf("missing enabled summary: %v", tt.Texts())
-	}
 	if err := tt.Click("公共词库"); err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +22,7 @@ func TestPublicWordlistsDefaultsToggleAndSave(t *testing.T) {
 	if err := tt.Click("启用 IT 行业包"); err != nil || !v.Packs.ITDisabled {
 		t.Fatalf("disable: %v %+v", err, v.Packs)
 	}
-	if err := tt.Click("保存词库设置"); err != nil || len(saved) != 1 || !saved[0].ITDisabled || saved[0].BaseDisabled {
+	if err := tt.Click("保存"); err != nil || len(saved) != 1 || !saved[0].ITDisabled || saved[0].BaseDisabled {
 		t.Fatalf("save: %v %+v", err, saved)
 	}
 	v.Snapshot.PacksFeedback = "词库设置已保存，下次语音生效。"
