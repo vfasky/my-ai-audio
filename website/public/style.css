@@ -55,6 +55,12 @@ kbd {
 .nav nav a { color: var(--ink); font-size: 14px; padding: 6px 12px; border-radius: 999px; opacity: .85; }
 .nav nav a:hover { background: var(--glass-strong); text-decoration: none; opacity: 1; }
 
+/* Motto */
+.motto { text-align: center; }
+.motto h2 { font-size: clamp(44px, 8vw, 88px); letter-spacing: .12em; margin: 18px 0 6px; background: linear-gradient(90deg, #ffb07f, #ff6a2b 55%, #ff3d2b); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.motto-sub { letter-spacing: .4em; font-size: 13px; color: var(--muted); margin: 0; }
+.motto-text { max-width: 560px; margin: 24px auto 0; color: var(--muted); font-size: clamp(16px, 2vw, 18px); }
+
 /* Shared */
 main { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
 .section { padding: 96px 0 8px; text-align: center; }
