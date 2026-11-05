@@ -53,6 +53,6 @@ void app_main(void)
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "YiYan BLE startup failed: %s", esp_err_to_name(err));
     } else {
-        ESP_LOGI(TAG, "Ready: advertise as YiYan; click UP to talk");
+        ESP_LOGI(TAG, "Ready: advertise as Yi Yan; click UP to talk");
     }
 }

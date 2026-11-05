@@ -8,10 +8,10 @@ Each `## <version>` section is the release note of one signed `go-voice` release
 
 ## 0.8.0
 
-- The app is now named 伊言 and uses the YZ round logo for its window, menu bar and icon; the app icon is transparent. The bundled firmware 0.3.0 shows the same logo with a "伊言" caption on the device screen and advertises as "伊言" over Bluetooth.
+- The app is now named 伊言 and uses the YZ round logo for its window, menu bar and icon; the app icon is transparent. The bundled firmware 0.3.0 shows the same logo with a "伊言" caption on the device screen and advertises as "Yi Yan" over Bluetooth.
 - Fix USB firmware installation reporting `FLASH_FAILED` at the "Restarting device" step. When the device-side checksum has passed, a failure while resetting is no longer treated as a failed installation; the helper retries the reset once. A failure before verification still stops with an error.
 
-Install the Apple Silicon DMG on macOS 26 or later, or choose Check for Updates… in an installed release. Bundled firmware is 0.3.0; open Firmware Installation to update the device over USB, then select it again on the device page because its Bluetooth name changed. Build and setup instructions are in the [application guide](https://github.com/vfasky/my-ai-audio/blob/go-voice-v0.8.0/gui/README.md). The on-screen logo, the new Bluetooth name and the reset fix remain unverified on a physical device.
+Install the Apple Silicon DMG on macOS 26 or later, or choose Check for Updates… in an installed release. Bundled firmware is 0.3.0; open Firmware Installation to update the device over USB, then select it again on the device page because its Bluetooth name changed to "Yi Yan". Build and setup instructions are in the [application guide](https://github.com/vfasky/my-ai-audio/blob/go-voice-v0.8.0/gui/README.md). The on-screen logo, the new Bluetooth name and the reset fix remain unverified on a physical device.
 
 ## 0.7.1
 

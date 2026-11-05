@@ -28,7 +28,7 @@
 #include <string.h>
 
 static const char *TAG = "vokie_ble";
-static const char *DEVICE_NAME = "伊言";
+static const char *DEVICE_NAME = "Yi Yan";
 extern const uint8_t boot_pcm_start[] asm("_binary_vokie_boot_16k_pcm_start");
 extern const uint8_t boot_pcm_end[] asm("_binary_vokie_boot_16k_pcm_end");
 static const uint16_t NO_CONN = BLE_HS_CONN_HANDLE_NONE;

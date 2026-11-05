@@ -26,7 +26,7 @@ class GoVoiceContractTests(unittest.TestCase):
             for path in consumers:
                 self.assertIn(expected, path.read_text(), str(path))
                 self.assertNotIn('7f0e000', path.read_text(), str(path))
-        self.assertIn('DEVICE_NAME = "伊言"', firmware)
+        self.assertIn('DEVICE_NAME = "Yi Yan"', firmware)
 
     def test_firmware_version_is_single_source(self):
         header = (ROOT / 'main/fw_version.h').read_text()

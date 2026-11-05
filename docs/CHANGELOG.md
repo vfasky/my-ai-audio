@@ -10,7 +10,7 @@
 
 - Publish go-voice 0.8.0 with the 伊言 rebrand, bundled firmware 0.3.0 and the USB reset fix; refresh the website download links.
 
-- Firmware 0.3.0 and go-voice: rebrand to "伊言" (YiYan). The device screen shows the YZ round logo and a "伊言" caption, advertises as "伊言" over BLE, and the desktop app, menu bar, website and icons use the new logo and name. Firmware built and host-tested only; not verified on a device.
+- Firmware 0.3.0 and go-voice: rebrand to "伊言" (YiYan). The device screen shows the YZ round logo and a "伊言" caption, advertises as "Yi Yan" over BLE, and the desktop app, menu bar, website and icons use the new logo and name. Firmware built and host-tested only; not verified on a device.
 
 - Publish go-voice 0.7.1 with the bundled starter vocabulary for users without a vocabulary file. Preserve existing vocabulary, and refresh release notes and website downloads.
 
