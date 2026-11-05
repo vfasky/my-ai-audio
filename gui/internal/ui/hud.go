@@ -2,6 +2,7 @@ package ui
 
 import (
 	"math"
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -109,6 +110,30 @@ func hudPreview(s Snapshot) string {
 	return ""
 }
 
+// learnedLine names the words a dictation added to the vocabulary.
+func learnedLine(words []string) string {
+	if len(words) == 0 {
+		return ""
+	}
+	return "「" + strings.Join(words, "」「") + "」已加入词库"
+}
+
+// learned is the capsule after an insertion added new words: a check, the
+// words, and a button that undoes it.
+func (v *View) learned(c *ui.Context, words []string) {
+	ui.Row(c).Attach(ui.AnchorBottom, ui.AnchorBottom).Bottom(10.5).Height(39).Padding(5.25, 5.25, 5.25, 12).Gap(9).
+		Radius(19.5).Background(colHUD).Border(1, ui.RGBA(255, 255, 255, 0.12)).Children(func() {
+		ui.Icon(c, iconCheck).Size(13.5, 13.5).TextColor(colGreen)
+		ui.Text(c, learnedLine(words)).FontSize(12.5).FontWeight(500).SingleLine().MaxWidth(352.5).TextColor(colText)
+		undo := ui.ButtonBase(c.Key("hud-undo-learn")).Height(28.5).PaddingX(12).Radius(14.25).Center().Label("撤销")
+		undo.Background(pick(undo.Hovered(), colPillHover, colPill))
+		undo.Children(func() { ui.Text(c, "撤销").FontSize(12).FontWeight(500).TextColor(colSubtle).SingleLine() })
+		if undo.Clicked() {
+			v.Actions.UndoLearned()
+		}
+	})
+}
+
 // slide eases the shown width of the ticker toward the width of its words,
 // so new words move in from the right edge rather than jump.
 type slide struct {
@@ -162,6 +187,10 @@ func (v *View) DrawHUD(c *ui.Context) {
 	c.Root().Background(ui.Transparent)
 	s := v.Snapshot
 	ui.Box(c).Fill().Children(func() {
+		if len(s.Learned) > 0 && !s.SpeechActive {
+			v.learned(c, s.Learned)
+			return
+		}
 		if text := hudPreview(s); text != "" {
 			ui.Box(c).Attach(ui.AnchorBottom, ui.AnchorBottom).Bottom(57).MaxWidth(HUDWidth-30).Padding(9, 15).
 				Radius(16).Background(colHUD).Border(1, ui.RGBA(255, 255, 255, 0.12)).Children(func() {

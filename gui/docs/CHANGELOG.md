@@ -6,6 +6,14 @@
 
 Each `## <version>` section is the release note of one signed `go-voice` release. `scripts/release.sh` requires the section in both language files; the Simplified Chinese section is signed into the update manifest and shown in the in-app update window, because the app interface is Chinese. Write user-visible changes only and keep both sections aligned. See [updates and releases](updates.md).
 
+## 0.9.0
+
+- After a dictation is inserted, names and terms the vocabulary lacks join it as Auto terms, and the capsule shows them with Undo for four seconds. With AI refinement on, the refinement model names them in the same request, so Chinese names are learned too; with refinement off, a local rule picks up English names such as Plaud, GPT-4o or iPhone. Undone or deleted words are not learned again; the Terms tab can turn learning off.
+- Add a Long Text Layout switch on the AI Refinement page. In every refinement mode, a long dictation is laid out as its main sentence followed by a bulleted list of the points the speaker listed, even when they were said as one sentence separated by commas, or as short paragraphs, without rewording. Off by default.
+- The General page gains a Custom option next to the hotkey presets: pick any two to four of Command, Control, Shift and Option as the chord held to record. A chord with fewer than two modifiers is not saved.
+
+Install the Apple Silicon DMG on macOS 26 or later, or choose Check for Updates… in an installed release. Bundled firmware remains 0.3.0. Open Vocabulary to turn learning off, AI Refinement to enable long-text layout, or General to choose a custom hotkey. Build and setup instructions are in the [application guide](https://github.com/vfasky/my-ai-audio/blob/go-voice-v0.9.0/gui/README.md). Host tests cover learning, layout prompts and the custom hotkey; model answers, the capsule on a Mac, the event tap and live layout remain unverified.
+
 ## 0.8.0
 
 - The app is now named 伊言 and uses the YZ round logo for its window, menu bar and icon; the app icon is transparent. The bundled firmware 0.3.0 shows the same logo with a "伊言" caption on the device screen and advertises as "Yi Yan" over Bluetooth.

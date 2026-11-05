@@ -40,5 +40,5 @@ func (s *Store) appendTargets(out []string, n int) []string {
 // Snapshot copies the data read by a background correction, so editing/importing
 // the vocabulary on the UI thread cannot change an in-flight operation.
 func (s *Store) Snapshot() Store {
-	return Store{Terms: slices.Clone(s.Terms), Replacements: slices.Clone(s.Replacements)}
+	return Store{Terms: slices.Clone(s.Terms), Replacements: slices.Clone(s.Replacements), Ignored: slices.Clone(s.Ignored)}
 }

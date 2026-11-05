@@ -28,6 +28,9 @@ type Store struct {
 	Terms []Term `json:"terms"`
 	// Replacements correct misrecognitions before anything else.
 	Replacements []Replacement `json:"replacements,omitempty"`
+	// Ignored are the normalized words the user undid or deleted after they
+	// were learned automatically; they are not learned again.
+	Ignored []string `json:"ignored,omitempty"`
 }
 
 func Normalize(s string) string            { return strings.ToLower(strings.Join(strings.Fields(s), " ")) }
@@ -52,7 +55,7 @@ func (s *Store) put(t Term, ai bool) error {
 	}
 	t.Aliases = nil
 	switch t.Source {
-	case "manual", "correction", "ai", "imported":
+	case "manual", "correction", "ai", "imported", "auto":
 	default:
 		return errors.New("invalid source")
 	}
@@ -80,6 +83,10 @@ func (s *Store) Delete(term string, ai bool) error {
 		if v.NormalizedTerm == Normalize(term) {
 			if ai && v.Locked {
 				return errors.New("term is locked")
+			}
+			if v.Source == "auto" {
+				// A learned word the user deletes stays unlearned.
+				s.ignore(v.NormalizedTerm)
 			}
 			s.Terms = append(s.Terms[:i], s.Terms[i+1:]...)
 			return nil
@@ -156,6 +163,9 @@ func Load(path string) (Store, error) {
 	// longer fits is dropped rather than failing the whole vocabulary.
 	for _, r := range migrated {
 		_ = validated.PutReplacement("", r)
+	}
+	for _, w := range s.Ignored {
+		validated.ignore(Normalize(w))
 	}
 	return validated, nil
 }

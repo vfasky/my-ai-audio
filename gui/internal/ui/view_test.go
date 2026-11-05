@@ -179,8 +179,14 @@ func TestRefinementSegmentsUpdateDraft(t *testing.T) {
 	if err := tt.Click("Responses"); err != nil || v.Config.API != refinement.APIResponses {
 		t.Fatalf("api: %v %q", err, v.Config.API)
 	}
+	if err := tt.Click("开启长文本自动排版"); err != nil || !v.Config.Layout {
+		t.Fatalf("layout: %v %v", err, v.Config.Layout)
+	}
 	if err := tt.Click("结构化"); err != nil || v.Config.Mode != "structured" {
 		t.Fatalf("mode: %v %q", err, v.Config.Mode)
+	}
+	if !tt.HasText("长文本自动排版") || !v.Config.Layout {
+		t.Fatalf("structured layout switch %q", tt.Texts())
 	}
 	if !tt.HasText("最终转写和词库将发送到所填端点，不含音频。") {
 		t.Fatal("remote disclosure missing")

@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -37,6 +38,25 @@ type Config struct {
 	ProviderOrder  string `json:"providerOrder,omitempty"`
 	ProviderIgnore string `json:"providerIgnore,omitempty"`
 	ProviderStrict bool   `json:"providerStrict,omitempty"`
+	// Layout lays out long dictations in every enabled mode: a lead
+	// sentence, then a bulleted list of the items the speaker enumerates, or
+	// short paragraphs.
+	Layout bool `json:"layout,omitempty"`
+}
+
+// LayoutMinLetters is how many letters and digits make a dictation long
+// enough for Config.Layout.
+const LayoutMinLetters = 30
+
+// LayoutRule lays a long dictation out without rewording it. The example
+// matters: without it models leave a sentence of comma-separated
+// requirements as one line.
+const LayoutRule = "Then lay the text out for reading, because it is long. When the speaker makes a request or names a topic and then gives several separate items, requirements, conditions, steps or points, even when they only follow each other separated by commas in one sentence, write the main request or topic as the first sentence ending with a full stop, then an empty line, then each item on its own line starting with \"• \" (or \"1. \", \"2. \" when the order matters), without punctuation at the end of the items. Otherwise split long text into short paragraphs separated by an empty line where the topic changes. Besides the edits above, only add line breaks, bullets and punctuation: do not reword, merge, summarize or add headings. When the text is a single point, leave it as one paragraph. Example: 把10月22日开始到今天的录音同步到飞书，录音已全部修正，不需要总结，原封不动导出录音文本 becomes:\n把10月22日开始到今天的录音同步到飞书。\n\n• 录音已全部修正\n• 不需要总结\n• 原封不动导出录音文本"
+
+// layout reports whether c lays out text: it is on, refinement is on, and
+// the text is long.
+func (c Config) layout(text string) bool {
+	return c.Layout && c.Mode != "off" && letters(text) >= LayoutMinLetters
 }
 
 // OpenAI wire formats for the remote engine.
@@ -153,6 +173,18 @@ func Prompt(text string, terms []string, mode string, keep ...string) string {
 }
 
 func PromptEvidence(text string, evidence Evidence, mode string, keep ...string) string {
+	return promptFor(text, evidence, mode, promptOptions{}, keep)
+}
+
+// promptOptions add steps to a prompt: learn asks for the new terms
+// (NewTermsRule), layout lays out the text (LayoutRule).
+type promptOptions struct{ learn, layout bool }
+
+// NewTermsRule asks the model to name, after the edited text, the new names
+// and terms of the dictation, which the app adds to the vocabulary.
+const NewTermsRule = "After the edited text, add one last line <new_terms>…</new_terms>; this line is the only exception to returning only the edited text. Inside it list, separated by commas, at most three proper names or specialized terms that occur in your edited text, are not in the vocabulary, and that a speech recognizer is unlikely to know: names of people, companies, products, brands, apps, projects, or uncommon technical terms, in Chinese or another language. Spell each exactly as in your edited text. Never list ordinary words, common words or phrases, everyday abbreviations, vocabulary terms, or anything that is not in your edited text. When there are none, write <new_terms></new_terms>."
+
+func promptFor(text string, evidence Evidence, mode string, o promptOptions, keep []string) string {
 	terms := evidence.Personal
 	candidates, tokens := candidateEvidenceAnalysis(text, evidence)
 	candidates = slices.DeleteFunc(candidates, func(c Candidate) bool { return slices.Contains(keep, c.Heard) })
@@ -188,7 +220,34 @@ func PromptEvidence(text string, evidence Evidence, mode string, keep ...string)
 		}
 		rule = head + "\n" + rule
 	}
+	if o.layout {
+		rule += "\n" + LayoutRule
+	}
+	if o.learn {
+		rule += "\n" + NewTermsRule
+	}
 	return Instructions + "\n" + rule + "\n" + string(data)
+}
+
+// newTermsLine is the line of NewTermsRule at the very end of a reply:
+// closed, or cut off by the length limit of the reply, on one line.
+var newTermsLine = regexp.MustCompile(`(?i)<new_terms>([^<\n]{0,400})(?:</new_terms>)?\s*$`)
+
+// SplitNewTerms takes the new terms line of NewTermsRule off the end of a
+// reply and returns the edited text and the terms it lists. Markup anywhere
+// else is text and stays.
+func SplitNewTerms(out string) (string, []string) {
+	loc := newTermsLine.FindStringSubmatchIndex(out)
+	if loc == nil {
+		return out, nil
+	}
+	var terms []string
+	for _, t := range strings.FieldsFunc(out[loc[2]:loc[3]], func(r rune) bool { return strings.ContainsRune(",，、;；", r) }) {
+		if t = strings.Trim(strings.TrimSpace(t), "\"'`「」“”《》"); t != "" && len(terms) < 8 {
+			terms = append(terms, t)
+		}
+	}
+	return strings.TrimSpace(out[:loc[0]]), terms
 }
 
 // Faithful reports whether output only edits original: it keeps most of
@@ -331,6 +390,22 @@ func Run(ctx context.Context, c Config, text string, terms []string, keychain Ke
 }
 
 func RunEvidence(ctx context.Context, c Config, text string, evidence Evidence, keychain Keychain, local Local, keep ...string) (string, string) {
+	r := Refine(ctx, c, text, evidence, keychain, local, false, keep...)
+	return r.Text, r.Status
+}
+
+// Result is how a refinement ended. Refined: the model's text passed the
+// fidelity check; only then are NewTerms, the names and terms it found new
+// when asked to learn, meaningful.
+type Result struct {
+	Text, Status string
+	Refined      bool
+	NewTerms     []string
+}
+
+// Refine is RunEvidence that, with learn, also asks the model for the new
+// names and terms of the dictation (NewTermsRule).
+func Refine(ctx context.Context, c Config, text string, evidence Evidence, keychain Keychain, local Local, learn bool, keep ...string) Result {
 	terms := slices.Clone(evidence.Personal)
 	for _, span := range evidence.Spans(text) {
 		if span.Source != "" && !slices.Contains(terms, span.Term) {
@@ -338,18 +413,21 @@ func RunEvidence(ctx context.Context, c Config, text string, evidence Evidence, 
 		}
 	}
 	if c.Mode == "off" {
-		return text, "disabled"
+		return Result{Text: text, Status: "disabled"}
 	}
 	switch c.Mode {
 	case "names", "light", "structured":
 	default:
-		return text, "invalid mode"
+		return Result{Text: text, Status: "invalid mode"}
 	}
+	// A dictation that contains the markup of NewTermsRule keeps it as
+	// text: the reply is then not asked for new terms, nor split.
+	learn = learn && !strings.Contains(strings.ToLower(text), "<new_terms")
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
-	prompt := PromptEvidence(text, evidence, c.Mode, keep...)
+	prompt := promptFor(text, evidence, c.Mode, promptOptions{learn: learn, layout: c.layout(text)}, keep)
 	if len(prompt) > 128*1024 {
-		return text, "润色上下文过长，已保留本地纠正结果。"
+		return Result{Text: text, Status: "润色上下文过长，已保留本地纠正结果。"}
 	}
 	type reply struct {
 		text string
@@ -375,19 +453,28 @@ func RunEvidence(ctx context.Context, c Config, text string, evidence Evidence, 
 	}()
 	select {
 	case <-ctx.Done():
-		return text, "timeout; original retained"
+		return Result{Text: text, Status: "timeout; original retained"}
 	case r := <-ch:
 		if r.err != nil {
-			return text, "engine unavailable; original retained"
+			return Result{Text: text, Status: "engine unavailable; original retained"}
+		}
+		// Only a reply that was asked for new terms ends with their line.
+		out, found := strings.TrimSpace(r.text), []string(nil)
+		if learn {
+			out, found = SplitNewTerms(out)
 		}
 		check := FaithfulTo
 		if c.Mode == "structured" {
 			check = StructuredFaithfulTo
 		}
-		if !check(text, r.text, terms) {
-			return text, "fidelity fallback"
+		if !check(text, out, terms) {
+			return Result{Text: text, Status: "fidelity fallback"}
 		}
-		return strings.TrimSpace(r.text), "refined"
+		res := Result{Text: out, Status: "refined", Refined: true}
+		if learn {
+			res.NewTerms = found
+		}
+		return res
 	}
 }
 

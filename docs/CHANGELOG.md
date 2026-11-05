@@ -6,6 +6,12 @@
 
 ## Unreleased
 
+- Publish go-voice 0.9.0 with automatic vocabulary learning, long-text layout and a custom push-to-talk hotkey; refresh the website download links.
+
+- YiYan: Long Text Layout switch on the AI Refinement page. In every refinement mode, a long dictation is laid out as its main sentence followed by a bulleted list of the points the speaker listed, even when they were said as one sentence separated by commas, or as short paragraphs, without rewording. Off by default. Verified by host tests only; model output on a Mac remains unverified.
+
+- YiYan: learn new words. After a dictation is inserted, names and terms the vocabulary lacks join it as Auto terms, and the capsule shows them with Undo for four seconds. With AI refinement on, the refinement model names them in the same request, so Chinese names are learned too; with refinement off, a local rule picks up English names such as Plaud, GPT-4o or iPhone. Undone or deleted words are not learned again; the Terms tab can turn learning off. Verified by host tests only; model answers and the capsule on a Mac remain unverified.
+
 - go-voice: custom push-to-talk hotkey. The General page gains a Custom option next to the presets: pick any two to four of ⌘ ⌃ ⇧ ⌥ as the chord held to record. A chord with fewer than two modifiers is not saved. Verified by host and Swift tests only; the event tap on a Mac remains unverified.
 
 - Publish go-voice 0.8.0 with the 伊言 rebrand, bundled firmware 0.3.0 and the USB reset fix; refresh the website download links.

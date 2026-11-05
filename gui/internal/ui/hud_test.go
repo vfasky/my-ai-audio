@@ -110,3 +110,24 @@ func TestHUDCommitOnlyWhenAllowed(t *testing.T) {
 		}
 	}
 }
+
+func TestHUDOffersToUndoLearnedWords(t *testing.T) {
+	var rec intents
+	v := testView(&rec)
+	undone := 0
+	v.Actions.UndoLearned = func() { undone++ }
+	v.Snapshot.Learned = []string{"Plaud"}
+	tt := ui.NewTester(v.DrawHUD, HUDWidth, HUDHeight)
+	if !tt.HasText("「Plaud」已加入词库") {
+		t.Fatalf("texts %q", tt.Texts())
+	}
+	if err := tt.Click("撤销"); err != nil {
+		t.Fatal(err)
+	}
+	if undone != 1 {
+		t.Fatalf("undo %d", undone)
+	}
+	if learnedLine([]string{"A1", "Bx"}) != "「A1」「Bx」已加入词库" {
+		t.Fatal(learnedLine([]string{"A1", "Bx"}))
+	}
+}

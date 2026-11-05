@@ -77,6 +77,10 @@ type Snapshot struct {
 	// HotkeyBusy: another copy of go-voice (debug or release) owns it.
 	Hotkey     string
 	HotkeyBusy bool
+	// Learn: new words of dictations join the vocabulary. Learned are the
+	// words the last dictation added, which the capsule offers to undo.
+	Learn   bool
+	Learned []string
 }
 type Actions struct {
 	FirmwareScan, FirmwareInstall func()
@@ -91,7 +95,11 @@ type Actions struct {
 	// ImportVocabulary and ExportVocabulary pick a JSON file and merge it
 	// into, or write, the terms and replacements.
 	ImportVocabulary, ExportVocabulary func()
-	ConfigurePacks                     func(wordlists.Config)
+	// UndoLearned removes the words the last dictation added; SetLearn turns
+	// learning new words on or off.
+	UndoLearned    func()
+	SetLearn       func(bool)
+	ConfigurePacks func(wordlists.Config)
 	// Configure saves the settings, and a typed API key to the keychain.
 	Configure  func(refinement.Config, string)
 	Credential func(string, string)
@@ -712,6 +720,18 @@ func (v *View) vocabulary(c *ui.Context) {
 			}
 		})
 	})
+	group(c, "learn", "", nil, func() {
+		row(c, "learn-row", func() {
+			ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
+				ui.Text(c, "自动加入新词").FontSize(14).FontWeight(500)
+				ui.Text(c, "插入后把词库中没有的新词加入词条：开启 AI 润色时由模型判断，否则只识别英文名称（如 Plaud）。可在提示中撤销。").FontSize(12).TextColor(colMuted)
+			})
+			on := v.Snapshot.Learn
+			if ui.Switch(c, &on).Label("自动加入新词").Changed() {
+				v.Actions.SetLearn(on)
+			}
+		})
+	})
 	group(c, "terms", "", nil, func() {
 		if len(v.Snapshot.Terms) == 0 {
 			row(c, "none", func() {
@@ -724,6 +744,9 @@ func (v *View) vocabulary(c *ui.Context) {
 					ui.Text(c, t.Term).FontSize(14).FontWeight(500).SingleLine()
 					if t.Locked {
 						ui.Icon(c, iconLock).Size(12, 12).TextColor(colOrange).Label("已锁定")
+					}
+					if t.Source == "auto" {
+						ui.Badge(c, "自动").Background(colPill).TextColor(colMuted)
 					}
 				})
 				if smallPill(c, "edit", "编辑", pillGhost, nil, false) {
@@ -1054,6 +1077,15 @@ func (v *View) refinement(c *ui.Context) {
 				v.Config.Mode = modes[i]
 			}
 		})
+		if v.Config.Mode != "off" {
+			row(c, "layout", func() {
+				ui.Column(c).Grow(1).MinWidth(0).Gap(3).Children(func() {
+					ui.Text(c, "长文本自动排版").FontSize(14).FontWeight(500)
+					ui.Text(c, "较长的听写按要点分行：先写主句，再用“•”列出各项，不改动原话。").FontSize(12).TextColor(colMuted)
+				})
+				ui.Switch(c, &v.Config.Layout).Label("开启长文本自动排版")
+			})
+		}
 	})
 	remote := v.Config.Engine == "remote"
 	if remote {

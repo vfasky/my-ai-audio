@@ -75,7 +75,7 @@ func (s *Store) Import(b []byte) (ImportResult, error) {
 	if err := json.Unmarshal(b, &e); err != nil || (e.Format != "" && e.Format != ExportFormat) || (e.Terms == nil && e.Replacements == nil) {
 		return res, ErrImportFormat
 	}
-	next := Store{Terms: slices.Clone(s.Terms), Replacements: slices.Clone(s.Replacements)}
+	next := s.Snapshot()
 	for _, t := range e.Terms {
 		term := Term{Term: t.Term, Source: "imported", Weight: 50, Locked: t.Locked}
 		if t.Weight != nil {

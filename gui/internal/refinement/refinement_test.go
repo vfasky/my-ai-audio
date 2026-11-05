@@ -595,3 +595,94 @@ func TestStreamingToleratesPlainJSONAndLongStreams(t *testing.T) {
 		t.Fatalf("long: %d %v", len([]rune(res.Text)), err)
 	}
 }
+
+func TestRefineAsksForNewTerms(t *testing.T) {
+	var prompt string
+	local := func(_ context.Context, p string) (string, error) {
+		prompt = p
+		return "可以链接 Plaud 吗？我想每周帮我清洗一下。\n<new_terms>Plaud，「普劳德」</new_terms>", nil
+	}
+	c := Config{Engine: "local", Mode: "light"}
+	text := "可以链接 Plaud 吗我想每周帮我清洗一下"
+	r := Refine(context.Background(), c, text, Evidence{Text: text}, nil, local, true)
+	if !r.Refined || r.Text != "可以链接 Plaud 吗？我想每周帮我清洗一下。" || len(r.NewTerms) != 2 || r.NewTerms[0] != "Plaud" || r.NewTerms[1] != "普劳德" {
+		t.Fatalf("%+v", r)
+	}
+	if !strings.Contains(prompt, "<new_terms>") {
+		t.Fatal("prompt lacks the new terms rule")
+	}
+	// Not asked: the rule is left out and the reply is not split.
+	r = Refine(context.Background(), c, text, Evidence{Text: text}, nil, local, false)
+	if strings.Contains(prompt, "<new_terms>") || r.NewTerms != nil {
+		t.Fatalf("%+v", r)
+	}
+	// Dictated markup is text: neither asked for nor taken away.
+	literal := "请把 <new_terms>Foo</new_terms> 这段标签原样保留下来"
+	echo := func(_ context.Context, p string) (string, error) { prompt = p; return literal + "。", nil }
+	r = Refine(context.Background(), c, literal, Evidence{Text: literal}, nil, echo, true)
+	if strings.Contains(prompt, NewTermsRule) || r.Text != literal+"。" || r.NewTerms != nil {
+		t.Fatalf("literal %+v", r)
+	}
+	// A refused refinement learns nothing from the model.
+	bad := func(context.Context, string) (string, error) {
+		return "完全无关的回答<new_terms>Foo</new_terms>", nil
+	}
+	if r = Refine(context.Background(), c, text, Evidence{Text: text}, nil, bad, true); r.Refined || r.NewTerms != nil || r.Text != text {
+		t.Fatalf("%+v", r)
+	}
+}
+
+func TestSplitNewTerms(t *testing.T) {
+	cases := []struct {
+		in, text string
+		terms    []string
+	}{
+		{"你好。\n<new_terms></new_terms>", "你好。", nil},
+		{"你好。<NEW_TERMS>伊言、 Plaud ;GPT-4o</NEW_TERMS>", "你好。", []string{"伊言", "Plaud", "GPT-4o"}},
+		{"你好。\n<new_terms>Plaud", "你好。", []string{"Plaud"}},
+		{"没有标记", "没有标记", nil},
+		// Only the trailing line is metadata; an unclosed tag inside the
+		// text or a block followed by more text stays.
+		{"前文 <new_terms>中间\n后面的内容", "前文 <new_terms>中间\n后面的内容", nil},
+		{"前文 <new_terms>A</new_terms> 后文", "前文 <new_terms>A</new_terms> 后文", nil},
+		{"前文 <new_terms>A</new_terms> 后文\n<new_terms>Plaud</new_terms>", "前文 <new_terms>A</new_terms> 后文", []string{"Plaud"}},
+	}
+	for _, c := range cases {
+		text, terms := SplitNewTerms(c.in)
+		if text != c.text || fmt.Sprint(terms) != fmt.Sprint(c.terms) {
+			t.Errorf("%q: %q %q", c.in, text, terms)
+		}
+	}
+}
+
+func TestRefineLaysOutLongText(t *testing.T) {
+	long := "把10月22日开始到今天的录音同步到飞书录音已全部修正不需要总结原封不动导出录音文本"
+	laid := "把 10 月 22 日开始到今天的录音同步到飞书。\n\n• 录音已全部修正\n• 不需要总结\n• 原封不动导出录音文本"
+	var prompt string
+	local := func(_ context.Context, p string) (string, error) { prompt = p; return laid, nil }
+	c := Config{Engine: "local", Mode: "light", Layout: true}
+	if r := Refine(context.Background(), c, long, Evidence{Text: long}, nil, local, false); !r.Refined || r.Text != laid {
+		t.Fatalf("%+v", r)
+	}
+	if !strings.Contains(prompt, LayoutRule) {
+		t.Fatal("long text without the layout rule")
+	}
+	Refine(context.Background(), Config{Engine: "local", Mode: "structured", Layout: true}, long, Evidence{Text: long}, nil, local, false)
+	if !strings.Contains(prompt, LayoutRule) {
+		t.Fatal("structured mode without the layout rule")
+	}
+	for _, c := range []Config{
+		{Engine: "local", Mode: "light"},
+		{Engine: "local", Mode: "structured"},
+	} {
+		Refine(context.Background(), c, long, Evidence{Text: long}, nil, local, false)
+		if strings.Contains(prompt, LayoutRule) {
+			t.Fatalf("%+v: layout rule", c)
+		}
+	}
+	short := "明天下午开会"
+	Refine(context.Background(), c, short, Evidence{Text: short}, nil, func(_ context.Context, p string) (string, error) { prompt = p; return short, nil }, false)
+	if strings.Contains(prompt, LayoutRule) {
+		t.Fatal("short text laid out")
+	}
+}

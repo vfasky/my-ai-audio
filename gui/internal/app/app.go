@@ -43,6 +43,8 @@ type settings struct {
 	// Hotkey is the modifier chord held to record with the Mac microphone,
 	// or hotkey.Off.
 	Hotkey string `json:"hotkey"`
+	// LearnOff stops adding new words of dictations to the vocabulary.
+	LearnOff bool `json:"learn_off,omitempty"`
 }
 type application struct {
 	ctx               context.Context
@@ -94,6 +96,12 @@ type application struct {
 	// was last given.
 	hotkeyLock *filelock.Lock
 	hotkeySent string
+	// aiTerms are the new terms refinement named for session aiTermsID;
+	// aiTermsOK: refinement succeeded and was asked for them, so they, not
+	// the local rule, decide what the session learns.
+	aiTerms   []string
+	aiTermsID uint32
+	aiTermsOK bool
 }
 
 type paintKind uint8
@@ -440,8 +448,14 @@ func (a *application) initialize() {
 		},
 		DeleteReplacement: func(from string) { a.store.DeleteReplacement(from); a.saveVocabulary(); a.refresh() },
 		ImportVocabulary:  a.importVocabulary,
-		Quit:              func() { mygo.App.Quit() },
-		SetOpenAtLogin:    a.setLoginItem,
+		UndoLearned:       a.undoLearned,
+		SetLearn: func(on bool) {
+			a.config.LearnOff = !on
+			a.saveSettings()
+			a.refresh()
+		},
+		Quit:           func() { mygo.App.Quit() },
+		SetOpenAtLogin: a.setLoginItem,
 		OpenLoginItems: func() {
 			if e := mygo.Shell.OpenExternal(loginItemsURL); e != nil {
 				a.view.Snapshot.Status = "无法打开系统设置"
@@ -673,6 +687,7 @@ func (a *application) syncSession() {
 	s.ASR = a.config.ASR
 	s.Jev = a.config.Jev
 	s.Hotkey = a.config.Hotkey
+	s.Learn = !a.config.LearnOff
 	s.CanCommit = c.CanCommit()
 	if c.Status != "" {
 		s.Status = c.Status
@@ -702,6 +717,7 @@ func (a *application) syncHUD() {
 	switch {
 	case c.Active && c.Phase != "inserting":
 		a.hudUntil = time.Time{}
+		a.view.Snapshot.Learned = nil
 		a.showHUD()
 		a.bindEscape(true)
 	case a.hudShown && c.Active:
@@ -709,16 +725,7 @@ func (a *application) syncHUD() {
 	case a.hudShown:
 		a.bindEscape(false)
 		if a.hudUntil.IsZero() {
-			a.hudUntil = time.Now().Add(hudLinger)
-			deadline := a.hudUntil
-			time.AfterFunc(hudLinger+50*time.Millisecond, func() {
-				a.post(func() {
-					if !a.hudShown || a.hudUntil.IsZero() || a.hudUntil != deadline || time.Now().Before(a.hudUntil) {
-						return
-					}
-					a.hideHUD()
-				})
-			})
+			a.lingerHUD(hudLinger)
 		} else if time.Now().After(a.hudUntil) {
 			a.hideHUD()
 		}
@@ -726,6 +733,60 @@ func (a *application) syncHUD() {
 	if a.hudShown {
 		a.hud.Invalidate()
 	}
+}
+
+// lingerHUD hides the capsule after d, unless something shows it again.
+func (a *application) lingerHUD(d time.Duration) {
+	a.hudUntil = time.Now().Add(d)
+	deadline := a.hudUntil
+	time.AfterFunc(d+50*time.Millisecond, func() {
+		a.post(func() {
+			if !a.hudShown || a.hudUntil.IsZero() || a.hudUntil != deadline || time.Now().Before(a.hudUntil) {
+				return
+			}
+			a.hideHUD()
+		})
+	})
+}
+
+// learnLinger is how long the capsule offers to undo the words it learned.
+const learnLinger = 4 * time.Second
+
+// learn adds the new words of an inserted dictation to the vocabulary and
+// offers to undo it in the capsule. With refined, the words come from the
+// refinement's answer; otherwise the local rule finds Latin names.
+func (a *application) learn(text string, refined bool) {
+	if a.config.LearnOff || text == "" {
+		return
+	}
+	var words []string
+	if refined {
+		words = a.store.Accept(a.aiTerms, text, vocabulary.MaxLearned)
+	} else {
+		words = a.store.NewTerms(text, vocabulary.MaxLearned)
+	}
+	a.aiTerms, a.aiTermsOK = nil, false
+	added := a.store.Learn(words)
+	if len(added) == 0 {
+		return
+	}
+	a.saveVocabulary()
+	a.view.Snapshot.Learned = added
+	a.showHUD()
+	a.lingerHUD(learnLinger)
+	a.mark(paintCatalog)
+}
+
+// undoLearned removes the words the last dictation added, and keeps them
+// from being learned again.
+func (a *application) undoLearned() {
+	if len(a.view.Snapshot.Learned) == 0 {
+		return
+	}
+	a.store.Unlearn(a.view.Snapshot.Learned)
+	a.saveVocabulary()
+	a.hideHUD()
+	a.refresh()
 }
 
 // showHUD shows the capsule on the display with the pointer.
@@ -752,6 +813,7 @@ func (a *application) flashHUD(reason string) {
 func (a *application) hideHUD() {
 	a.bindEscape(false)
 	a.hudUntil = time.Time{}
+	a.view.Snapshot.Learned = nil
 	if a.hud != nil && a.hudShown {
 		a.hud.Hide()
 	}
@@ -1142,7 +1204,15 @@ func (a *application) onSpeech(e bridge.Event) {
 		// inserts or refines the text.
 		e.Text = a.store.Correct(e.Text)
 	}
+	inserted, refined := "", false
+	if e.Type == "inserted" && a.coordinator.Active && a.coordinator.Phase == "inserting" && e.SessionID == a.coordinator.Generation {
+		inserted = a.coordinator.Refined
+		refined = a.aiTermsOK && a.aiTermsID == e.SessionID
+	}
 	a.effects(a.coordinator.Speech(e.Type, e.SessionID, e.Text, time.Now()))
+	if inserted != "" && !a.coordinator.Active {
+		a.learn(inserted, refined)
+	}
 }
 
 // jsonFiles is the filter of the vocabulary file dialogs.
@@ -1248,6 +1318,7 @@ func (a *application) effects(effects []device.Effect) {
 		case "host_state":
 			a.sendBluetooth(map[string]any{"type": "host_state", "state": e.State})
 		case "start":
+			a.aiTerms, a.aiTermsID, a.aiTermsOK = nil, 0, false
 			a.terms = a.store.Contextual(100)
 			a.correctionTerms = a.store.CorrectionTerms()
 			a.sessionPacks = a.config.Packs
@@ -1337,6 +1408,7 @@ func (a *application) refine(e device.Effect) {
 	packs := a.sessionPacks
 	speech := a.speech
 	judge := a.config.Jev
+	learn := !a.config.LearnOff
 	corrections := a.store.Snapshot()
 	go func() {
 		prepared := e.Text
@@ -1385,7 +1457,7 @@ func (a *application) refine(e device.Effect) {
 			})
 			return
 		}
-		out, status := refinement.RunEvidence(ctx, cfg, text, evidence, keychain.Store{}, func(ctx context.Context, prompt string) (string, error) {
+		res := refinement.Refine(ctx, cfg, text, evidence, keychain.Store{}, func(ctx context.Context, prompt string) (string, error) {
 			if speech == nil {
 				return "", errors.New("speech unavailable")
 			}
@@ -1398,14 +1470,18 @@ func (a *application) refine(e device.Effect) {
 			case result := <-reply:
 				return result, nil
 			}
-		}, keep...)
+		}, learn, keep...)
 		// Native segmentation and correction stay on this worker.
-		out = corrections.CorrectSegmented(out)
+		out := corrections.CorrectSegmented(res.Text)
 		a.post(func() {
 			if ctx.Err() != nil {
 				return
 			}
-			a.view.Snapshot.Status = note + status
+			// After Commit the ASR original was inserted, without these terms.
+			if learn && res.Refined && a.coordinator.Phase == "refining" && a.coordinator.Generation == e.ID {
+				a.aiTerms, a.aiTermsID, a.aiTermsOK = res.NewTerms, e.ID, true
+			}
+			a.view.Snapshot.Status = note + res.Status
 			a.effects(a.coordinator.Speech("refinement_done", e.ID, out, time.Now()))
 		})
 	}()
