@@ -6,13 +6,15 @@
 
 ## Unreleased
 
+- Publish go-voice 0.10.1 with bundled firmware 0.3.1, the transparent sidebar logo and MyGo 0.9.1; pin the MyGo command as a Go tool so its dependencies stay in go.sum; refresh the website download links.
+
 - Publish go-voice 0.10.0 with 30-minute sessions, dictation history and the blue app icon; refresh the website download links.
 
 - go-voice: record up to 30 minutes per session instead of 5. At the limit the recording ends and is recognized and inserted instead of being cancelled, and the capsule counts down the last minute. Engines that accept less keep a shorter limit: 3 minutes 50 seconds for qwen3-asr-flash (10 MB request bound) and 10 minutes for Omni Realtime. A dictation longer than 8,000 characters skips Jev and AI refinement and inserts the recognized text. The SpeechBridge pipe now carries texts of a 30-minute dictation. Verified by host and Swift tests only; long recordings with each engine, on a Mac and with the badge, remain unverified.
 
 - go-voice: History page and menu-bar Recent menu. The recognized text of every session of the last 7 days is kept on the Mac, including sessions that were cancelled, failed, disconnected or interrupted by quitting, so words are not lost; entries can be searched, opened, copied, deleted or cleared. The menu bar copies one of the latest five with a click. Only text is stored, in `history.json` with mode 0600; audio is never stored. Verified by host tests only; the page and menu on a Mac remain unverified.
 
-- Firmware 0.3.1: when the host ends a session while the device still captures (its recording limit or a cancel), the device stops capturing as an UP click would. Firmware built and host-tested only; not verified on a device.
+- Firmware 0.3.1: when the host ends a session while the device still captures (its recording limit or a cancel), the device stops capturing as an UP click would. Built with ESP-IDF 5.5.3 (Docker image `espressif/idf:v5.5.3`) and bundled with go-voice 0.10.1; not verified on a device.
 
 - YiYan: the app icon now has a blue background instead of the gray tile macOS 26 draws behind a transparent icon. Not yet checked in Finder or the Dock on a Mac.
 

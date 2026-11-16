@@ -6,6 +6,14 @@
 
 Each `## <version>` section is the release note of one signed `go-voice` release. `scripts/release.sh` requires the section in both language files; the Simplified Chinese section is signed into the update manifest and shown in the in-app update window, because the app interface is Chinese. Write user-visible changes only and keep both sections aligned. See [updates and releases](updates.md).
 
+## 0.10.1
+
+- Bundle firmware 0.3.1. When go-voice ends a session while the device still captures, at the recording limit or after a cancel, the device now stops capturing by itself instead of recording until UP is clicked again.
+- The sidebar shows the transparent logo again, while the app icon keeps its blue background.
+- Update the app framework to MyGo 0.9.1.
+
+Install the Apple Silicon DMG on macOS 26 or later, or choose Check for Updates… in an installed release. Bundled firmware is 0.3.1; open Firmware Installation to update the device over USB. Build and setup instructions are in the [application guide](https://github.com/vfasky/my-ai-audio/blob/go-voice-v0.10.1/gui/README.md). The firmware was built with ESP-IDF 5.5.3 and passed the merged-image and BLE compatibility checks; the device stopping by itself and the update from 0.10.0 remain unverified on a physical device.
+
 ## 0.10.0
 
 - Record up to 30 minutes per session instead of 5. At the limit the recording ends and is recognized and inserted instead of being cancelled, and the capsule counts down the last minute. Engines that accept less keep a shorter limit: 3 minutes 50 seconds for qwen3-asr-flash and 10 minutes for Omni Realtime. A dictation longer than 8,000 characters skips Jev and AI refinement and inserts the recognized text.
