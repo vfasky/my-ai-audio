@@ -20,8 +20,11 @@ const ff = (args, o = {}) => {
 try {
   // Round mark only: 143x143 at the left edge, upscaled to 1024.
   ff(['-i', src, '-vf', 'crop=143:143:0:0,scale=1024:1024:flags=lanczos,format=rgba', '-frames:v', '1', logo]);
-  // App icon: the transparent mark with a small margin, no background tile.
-  ff(['-i', logo, '-vf', 'scale=880:880:flags=lanczos,format=rgba,pad=1024:1024:72:72:color=0x00000000', '-frames:v', '1', icon]);
+  // App icon: the mark over a full-bleed blue gradient (macOS masks the tile shape),
+  // so macOS 26 does not place a transparent icon on its default gray tile.
+  ff(['-f', 'lavfi', '-i', 'gradients=s=1024x1024:c0=0x3A8DFF:c1=0x0A5BD8:x0=0:y0=0:x1=0:y1=1024:d=1,format=rgba',
+    '-i', logo, '-filter_complex', '[1:v]scale=820:820:flags=lanczos[l];[0:v][l]overlay=102:102:format=auto,format=rgba',
+    '-frames:v', '1', icon]);
   // Firmware: 64x64 RGB565 over UI_BG.
   const pixels = ff(['-i', logo, '-filter_complex',
     '[0:v]scale=64:64:flags=lanczos,format=rgba[l];color=c=0x0B1018:s=64x64,format=rgba[bg];[bg][l]overlay=shortest=1,format=rgb565le[out]',

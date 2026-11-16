@@ -19,7 +19,7 @@ func TestHelperValidation(t *testing.T) {
 	if _, err = Parse([]byte(`{"type":"audio","sessionId":1,"sequence":0,"payloadBase64":"AA==","extra":1}`)); err == nil {
 		t.Fatal("audio extra field")
 	}
-	cases := []string{`{"type":"audio","payloadBase64":"AA=="}`, `{"type":"discovered","deviceName":"` + strings.Repeat("x", 257) + `"}`, `{"type":"audio","sessionId":1,"sequence":15000,"payloadBase64":"AA=="}`, `{"type":"control","payloadBase64":"AB=="}`, `{"type":"control","payloadBase64":"AA==\n"}`, `{"type":"connected","unexpected":1}`, `{"type":"connected","type":"connected"}`, `{"type":"error","message":"` + strings.Repeat("x", 129) + `"}`, strings.Repeat(" ", MaxLine+1)}
+	cases := []string{`{"type":"audio","payloadBase64":"AA=="}`, `{"type":"discovered","deviceName":"` + strings.Repeat("x", 257) + `"}`, `{"type":"audio","sessionId":1,"sequence":90000,"payloadBase64":"AA=="}`, `{"type":"control","payloadBase64":"AB=="}`, `{"type":"control","payloadBase64":"AA==\n"}`, `{"type":"connected","unexpected":1}`, `{"type":"connected","type":"connected"}`, `{"type":"error","message":"` + strings.Repeat("x", 129) + `"}`, strings.Repeat(" ", MaxLine+1)}
 	for _, line := range cases {
 		if _, err := Parse([]byte(line)); err == nil {
 			t.Fatal("accepted", line)
@@ -63,7 +63,7 @@ func TestMicrophoneAndHotkeyEvents(t *testing.T) {
 	for _, line := range []string{
 		`{"type":"mic","sessionId":3,"sequence":0,"payloadBase64":"` + short + `"}`,
 		`{"type":"mic","sequence":0,"payloadBase64":"` + frame + `"}`,
-		`{"type":"mic","sessionId":3,"sequence":15000,"payloadBase64":"` + frame + `"}`,
+		`{"type":"mic","sessionId":3,"sequence":90000,"payloadBase64":"` + frame + `"}`,
 		`{"type":"mic","sessionId":3,"sequence":0,"text":"x","payloadBase64":"` + frame + `"}`,
 		`{"type":"hotkey","text":"left"}`,
 		`{"type":"hotkey"}`,
@@ -73,5 +73,16 @@ func TestMicrophoneAndHotkeyEvents(t *testing.T) {
 		if _, err := Parse([]byte(line)); err == nil {
 			t.Fatal("accepted", line)
 		}
+	}
+}
+
+// A 30-minute dictation fits in one event; text past MaxText does not.
+func TestLongDictationEvent(t *testing.T) {
+	long := strings.Repeat("字", 13000)
+	if e, err := Parse([]byte(`{"type":"final","sessionId":1,"text":"` + long + `"}`)); err != nil || e.Text != long {
+		t.Fatal(err)
+	}
+	if _, err := Parse([]byte(`{"type":"final","sessionId":1,"text":"` + strings.Repeat("a", MaxText+1) + `"}`)); err == nil {
+		t.Fatal("accepted text past MaxText")
 	}
 }

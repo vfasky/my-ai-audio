@@ -12,9 +12,27 @@ final class ContractTests: XCTestCase {
     XCTAssertEqual(try command.pcm().count, 640)
     let bad = try Command(
       data: Data(
-        "{\"type\":\"pcm\",\"sessionId\":1,\"sequence\":15000,\"payloadBase64\":\"AA==\"}".utf8))
+        "{\"type\":\"pcm\",\"sessionId\":1,\"sequence\":90000,\"payloadBase64\":\"AA==\"}".utf8))
     XCTAssertThrowsError(try bad.pcm())
-    XCTAssertThrowsError(try Command(data: Data(repeating: 32, count: 16385)))
+    XCTAssertThrowsError(try Command(data: Data(repeating: 32, count: BridgeLimits.line + 1)))
+    // The last frame of a 30-minute session.
+    let last: [String: Any] = [
+      "type": "pcm", "sessionId": 1, "sequence": 89_999, "payloadBase64": value,
+    ]
+    XCTAssertEqual(
+      try Command(data: JSONSerialization.data(withJSONObject: last)).pcm().count, 640)
+  }
+  func testLongDictationText() throws {
+    // About 30 minutes of Chinese dictation fits; past the bound does not.
+    let long = String(repeating: "字", count: 13_000)
+    let insert: [String: Any] = ["type": "insert", "sessionId": 1, "text": long]
+    XCTAssertEqual(
+      try Command(data: JSONSerialization.data(withJSONObject: insert)).text?.count, 13_000)
+    let over: [String: Any] = [
+      "type": "insert", "sessionId": 1,
+      "text": String(repeating: "a", count: BridgeLimits.text + 1),
+    ]
+    XCTAssertThrowsError(try Command(data: JSONSerialization.data(withJSONObject: over)))
   }
   func testPermissionCommandsAndStates() throws {
     let request = try Command(data: Data(#"{"type":"request-permission","text":"speech"}"#.utf8))

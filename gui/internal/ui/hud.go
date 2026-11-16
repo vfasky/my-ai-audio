@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -102,12 +103,54 @@ func hudWords(s Snapshot) string {
 }
 
 // hudPreview is the text the preview above the capsule shows: while
-// refinement runs, the ASR original that the confirm button would insert.
+// refinement runs, the ASR original that the confirm button would insert;
+// while recording, the time left once the session nears its limit.
 func hudPreview(s Snapshot) string {
 	if s.Phase == "refining" {
 		return s.Original
 	}
+	return limitNotice(s)
+}
+
+// limitWarning is how long before the limit the capsule starts counting.
+const limitWarning = time.Minute
+
+// limitNotice tells that a session nears its limit, or reached it and is
+// being recognized.
+func limitNotice(s Snapshot) string {
+	if s.Limit <= 0 || !s.SpeechActive {
+		return ""
+	}
+	switch {
+	case s.Limited && (s.Phase == "tail" || s.Phase == "finalizing"):
+		return "已到 " + FormatLimit(s.Limit) + "上限，已自动结束录音并识别"
+	case !s.Limited && s.Phase == "recording":
+		left := s.Limit - s.Meter.Duration()
+		if left > limitWarning {
+			return ""
+		}
+		secs := int((max(left, 0) + time.Second - 1) / time.Second)
+		return fmt.Sprintf("还剩 %d 秒：到 %s会自动结束并识别", secs, FormatLimit(s.Limit))
+	}
 	return ""
+}
+
+// FormatLimit names a session limit, such as "30 分钟" or "3 分 50 秒".
+func FormatLimit(d time.Duration) string {
+	m, sec := int(d/time.Minute), int(d%time.Minute/time.Second)
+	switch {
+	case sec == 0:
+		return fmt.Sprintf("%d 分钟", m)
+	case m == 0:
+		return fmt.Sprintf("%d 秒", sec)
+	}
+	return fmt.Sprintf("%d 分 %d 秒", m, sec)
+}
+
+// clock shows a duration as m:ss.
+func clock(d time.Duration) string {
+	s := int(d / time.Second)
+	return fmt.Sprintf("%d:%02d", s/60, s%60)
 }
 
 // learnedLine names the words a dictation added to the vocabulary.

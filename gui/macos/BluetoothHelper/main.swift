@@ -13,7 +13,8 @@ private let audioEnvelopeBytes = 16
 private let maxAudioFrameBytes = 166
 private let maxAudioFragments = 64
 private let maxPendingAudioFrames = 64
-private let maxAudioSequences = 15_000
+// 30 minutes of 20 ms frames, as internal/protocol.MaxFrames.
+private let maxAudioSequences = 90_000
 private let attOverheadBytes = 3
 private let minimumAttMtu = 185
 private let minimumAttPayloadBytes = minimumAttMtu - attOverheadBytes

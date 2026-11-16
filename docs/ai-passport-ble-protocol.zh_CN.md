@@ -26,7 +26,7 @@ Control 只接受有响应写。无响应写和读取 Control 不属于 V1 契�
 Control 值是带 `v: 1` 的完整 UTF-8 JSON 对象，最长 182 字节。设备到主机的消息如下：
 
 ```json
-{"v":1,"type":"hello","device":"ai-passport","fw":"0.3.0","codec":"ima-adpcm","sampleRate":16000,"channels":1,"frameMs":20}
+{"v":1,"type":"hello","device":"ai-passport","fw":"0.3.1","codec":"ima-adpcm","sampleRate":16000,"channels":1,"frameMs":20}
 {"v":1,"type":"ptt_down","sessionId":123,"seq":0}
 {"v":1,"type":"ptt_up","sessionId":123,"seq":1,"finalSequence":7}
 {"v":1,"type":"button_event","button":"down","event":"click","durationMs":0,"seq":2}
@@ -47,7 +47,7 @@ Control 值是带 `v: 1` 的完整 UTF-8 JSON 对象，最长 182 字节。设�
 {"v":1,"type":"host_state","state":"processing"}
 ```
 
-固件接受 `ready`、`recording`、`processing`、`success` 和 `error`。Vokie 插件通常发送 `ready`、`processing`、`success` 或 `error`。可选的 message 字段仅用于诊断，不能包含转写文本。
+固件接受 `ready`、`recording`、`processing`、`success` 和 `error`。Vokie 插件通常发送 `ready`、`processing`、`success` 或 `error`。从固件 0.3.1 起，设备仍在采集时收到 `processing`、`success`、`error` 或 `ready`，也会像单击 `UP` 一样停止采集：说明主机已结束本次会话（到达录音上限或已取消）。设备随后发送 `ptt_up`，主机对已结束的会话忽略它。可选的 message 字段仅用于诊断，不能包含转写文本。
 
 ## 按键语义
 
@@ -114,6 +114,8 @@ Control 通知不进行第二层分片，每条通知必须包含一个完整 JS
 9. 重新订阅后收到重复但有效的 `hello` 时，主机重新发送 `host_ready`，不改变活动会话身份。
 
 Vokie 插件把单次会话限制为 15,000 个音频帧（五分钟），等待会话接受的时间为 1.2 秒，连续三秒没有合法音频视为停滞，并在 `ptt_up` 后最多等待 500 ms 接收已声明的尾帧。这些是主机实现限制，不是额外的 BLE 字段。
+
+go-voice 桌面主机把单次会话限制为 90,000 个音频帧（30 分钟）；引擎能接受的更短时取引擎上限（`qwen3-asr-flash` 为 3 分 50 秒，Omni Realtime 为 10 分钟）。到达上限时不取消：把已收到的音频视为完整录音进行识别，发送 `host_state` `processing`，并忽略之后的音频帧和设备的 `ptt_up`。因此它接受 `ptt_up` 中任意 `finalSequence`，再按会话判断。
 
 ## 安全与设备选择
 

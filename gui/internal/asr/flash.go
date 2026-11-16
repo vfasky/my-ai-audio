@@ -17,9 +17,9 @@ import (
 // The whole-recording model: the session keeps the audio in memory and,
 // once it ends, sends it as one WAV in a multimodal generation request.
 
-// maxWhole bounds the kept audio: 6 minutes, past the 5-minute session
-// limit of the coordinator.
-const maxWhole = 6 * 60 * 32000
+// maxWhole bounds the kept audio: ten seconds past WholeMaxDuration, at
+// which the coordinator ends the recording.
+const maxWhole = int((WholeMaxDuration+10*time.Second)/time.Second) * 32000
 
 // wholeTimeout bounds the request, under the coordinator's 60-second
 // processing timeout so that its reason ends the session.

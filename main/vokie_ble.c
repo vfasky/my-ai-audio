@@ -397,6 +397,15 @@ static void button_cb(bsp_btn_t button, bsp_btn_ev_t event, void *user)
     }
 }
 
+// The host ended the session while the microphone still records: it reached
+// the host's recording limit, or the host cancelled it. Release the
+// microphone as the stop click would; the audio task sends ptt_up, which the
+// host ignores for a session it already ended.
+static void host_ended_recording(void)
+{
+    if (s_recording) s_stop_requested = true;
+}
+
 static int access_cb(uint16_t conn, uint16_t attr, struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
     (void)attr;
@@ -419,14 +428,18 @@ static int access_cb(uint16_t conn, uint16_t attr, struct ble_gatt_access_ctxt *
         if (cJSON_IsString(state)) {
             if (strcmp(state->valuestring, "ready") == 0) {
                 s_host_ready = true;
+                host_ended_recording();
                 ui_status_set_state(UI_STATUS_READY, "Ready");
             } else if (strcmp(state->valuestring, "recording") == 0) {
                 ui_status_set_state(UI_STATUS_RECORDING, "Listening");
             } else if (strcmp(state->valuestring, "processing") == 0) {
+                host_ended_recording();
                 ui_status_set_state(UI_STATUS_PROCESSING, "Processing");
             } else if (strcmp(state->valuestring, "success") == 0) {
+                host_ended_recording();
                 ui_status_set_state(UI_STATUS_SUCCESS, "Sent");
             } else if (strcmp(state->valuestring, "error") == 0) {
+                host_ended_recording();
                 ui_status_set_state(UI_STATUS_ERROR, "Try again");
             }
         }

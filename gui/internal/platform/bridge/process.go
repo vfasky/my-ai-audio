@@ -16,7 +16,13 @@ import (
 	"time"
 )
 
-const MaxLine = 16 * 1024
+// MaxLine bounds an NDJSON line and MaxText the text of one event or
+// command: a 30-minute dictation, or a refinement prompt (at most 128 KiB).
+// BridgeCore's BridgeLimits keeps the native side in step.
+const (
+	MaxLine = 256 * 1024
+	MaxText = 160 * 1024
+)
 
 type Event struct {
 	Type              string `json:"type"`
@@ -105,7 +111,7 @@ func Parse(line []byte) (Event, error) {
 	if err != nil {
 		return Event{}, err
 	}
-	if len(e.DeviceID) > 256 || len(e.DeviceName) > 256 || len(e.PreferredDeviceID) > 256 || len(e.Message) > 128 || len(e.Text) > 12000 {
+	if len(e.DeviceID) > 256 || len(e.DeviceName) > 256 || len(e.PreferredDeviceID) > 256 || len(e.Message) > 128 || len(e.Text) > MaxText {
 		return e, protocol.ErrInvalid
 	}
 	if e.Type != "permission" && (e.Permission != "" || e.State != "") {

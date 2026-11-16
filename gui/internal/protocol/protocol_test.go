@@ -29,7 +29,7 @@ func TestControlStrict(t *testing.T) {
 			t.Fatal(s, e)
 		}
 	}
-	invalid := []string{`null`, `[]`, `{"v":true,"type":"host_ready"}`, `{"v":1,"v":1,"type":"host_ready"}`, `{"v":1,"type":"host_ready"} {}`, `{"v":1,"type":"ptt_down","sessionId":-1,"seq":0}`, `{"v":1,"type":"ptt_down","sessionId":1.0,"seq":0}`, `{"v":1,"type":"ptt_down","sessionId":1}`, `{"v":1,"type":"host_ready","extra":1}`, `{"v":1,"type":"host_state","state":null}`, `{"v":1,"type":"ptt_up","sessionId":1,"seq":1,"finalSequence":15000}`}
+	invalid := []string{`null`, `[]`, `{"v":true,"type":"host_ready"}`, `{"v":1,"v":1,"type":"host_ready"}`, `{"v":1,"type":"host_ready"} {}`, `{"v":1,"type":"ptt_down","sessionId":-1,"seq":0}`, `{"v":1,"type":"ptt_down","sessionId":1.0,"seq":0}`, `{"v":1,"type":"ptt_down","sessionId":1}`, `{"v":1,"type":"host_ready","extra":1}`, `{"v":1,"type":"host_state","state":null}`}
 	for _, s := range invalid {
 		if _, e := ParseControl([]byte(s)); e == nil {
 			t.Fatal("accepted", s)
@@ -184,19 +184,6 @@ func TestStreamTailArrivalAndLimits(t *testing.T) {
 		t.Fatal("stall")
 	}
 	s = NewStream(1, now)
-	for i := uint32(0); i < MaxFrames; i++ {
-		_, e = s.Push(Frame{1, i, b}, now.Add(time.Duration(i)*20*time.Millisecond))
-		if e != nil {
-			t.Fatal(i, e)
-		}
-	}
-	if s.Meter.Duration() != 5*time.Minute {
-		t.Fatal("duration")
-	}
-	if _, e = s.Tick(now.Add(5 * time.Minute)); e == nil {
-		t.Fatal("5 minute limit")
-	}
-	s = NewStream(1, now)
 	if _, e = s.Stop(EmptyFinal, now); e != nil || !s.Done {
 		t.Fatal("empty")
 	}
@@ -219,17 +206,71 @@ func TestStreamLimitsSayWhy(t *testing.T) {
 	if _, e := s.Tick(start.Add(3 * time.Second)); !errors.Is(e, ErrSilence) || !errors.Is(e, ErrLimit) {
 		t.Fatalf("silence: %v", e)
 	}
-	s = NewStream(1, start)
-	s.last = start.Add(5 * time.Minute)
-	if _, e := s.Tick(start.Add(5 * time.Minute)); !errors.Is(e, ErrTooLong) {
-		t.Fatalf("too long: %v", e)
-	}
 	if _, e := NewStream(1, start).Push(Frame{SessionID: 1, Sequence: MaxFrames}, start); !errors.Is(e, ErrSequence) || !errors.Is(e, ErrLimit) {
 		t.Fatalf("sequence: %v", e)
 	}
-	for _, e := range []error{ErrSilence, ErrTooLong, ErrSequence, ErrBacklog, ErrMissing} {
+	for _, e := range []error{ErrSilence, ErrSequence, ErrBacklog, ErrMissing} {
 		if e.Error() == ErrLimit.Error() {
 			t.Fatalf("%v says no reason", e)
 		}
+	}
+}
+
+func TestMaxDurationIsThirtyMinutes(t *testing.T) {
+	if MaxDuration != 30*time.Minute || MaxFrames != 90000 {
+		t.Fatal(MaxDuration, MaxFrames)
+	}
+	// A device stop past the bound is the stream's to judge, not a parse error.
+	if c, e := ParseControl([]byte(`{"v":1,"type":"ptt_up","sessionId":1,"seq":1,"finalSequence":90500}`)); e != nil || c.FinalSequence != 90500 {
+		t.Fatal(c, e)
+	}
+}
+
+// At its limit the stream ends the recording itself and keeps the audio;
+// later frames and the device's own stop change nothing.
+func TestStreamEndsAtLimit(t *testing.T) {
+	now := time.Unix(100, 0)
+	b := encoded()
+	s := NewStream(1, now)
+	s.Limit = 50
+	var got int
+	for i := uint32(0); i < 50; i++ {
+		p, e := s.Push(Frame{1, i, b}, now.Add(time.Duration(i)*20*time.Millisecond))
+		if e != nil {
+			t.Fatal(i, e)
+		}
+		got += len(p)
+	}
+	if s.Full || s.Done {
+		t.Fatal("ended before the limit")
+	}
+	p, e := s.Push(Frame{1, 50, b}, now.Add(time.Second))
+	got += len(p)
+	if e != nil || !s.Full || !s.Done || got != 50 || s.Meter.Duration() != time.Second {
+		t.Fatal(e, s.Full, s.Done, got)
+	}
+	if p, e = s.Push(Frame{1, 51, b}, now.Add(time.Second)); e != nil || len(p) != 0 {
+		t.Fatal("late frame", e)
+	}
+	if p, e = s.Stop(90010, now.Add(time.Second)); e != nil || len(p) != 0 {
+		t.Fatal("device stop", e)
+	}
+	if s.LimitDuration() != time.Second {
+		t.Fatal(s.LimitDuration())
+	}
+}
+
+// Frames that stop counting up still end at the clock's backstop, with
+// what arrived.
+func TestStreamClockBackstop(t *testing.T) {
+	now := time.Unix(100, 0)
+	b := encoded()
+	s := NewStream(1, now)
+	s.Limit = 50
+	_, _ = s.Push(Frame{1, 0, b}, now)
+	s.last = now.Add(6 * time.Second)
+	p, e := s.Tick(now.Add(6 * time.Second))
+	if e != nil || !s.Full || !s.Done || len(p) != 0 || s.Meter.Received != 1 {
+		t.Fatal(e, s.Full, s.Done, len(p))
 	}
 }

@@ -11,7 +11,7 @@ func TestPublicWordlistsDefaultsToggleAndSave(t *testing.T) {
 	v := testView(&rec)
 	var saved []wordlists.Config
 	v.Actions.ConfigurePacks = func(c wordlists.Config) { saved = append(saved, c) }
-	v.Page = 1
+	v.Page = VocabularyPage
 	tt := newTester(v)
 	if err := tt.Click("公共词库"); err != nil {
 		t.Fatal(err)

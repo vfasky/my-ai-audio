@@ -6,6 +6,14 @@
 
 ## Unreleased
 
+- go-voice: record up to 30 minutes per session instead of 5. At the limit the recording ends and is recognized and inserted instead of being cancelled, and the capsule counts down the last minute. Engines that accept less keep a shorter limit: 3 minutes 50 seconds for qwen3-asr-flash (10 MB request bound) and 10 minutes for Omni Realtime. A dictation longer than 8,000 characters skips Jev and AI refinement and inserts the recognized text. The SpeechBridge pipe now carries texts of a 30-minute dictation. Verified by host and Swift tests only; long recordings with each engine, on a Mac and with the badge, remain unverified.
+
+- go-voice: History page and menu-bar Recent menu. The recognized text of every session of the last 7 days is kept on the Mac, including sessions that were cancelled, failed, disconnected or interrupted by quitting, so words are not lost; entries can be searched, opened, copied, deleted or cleared. The menu bar copies one of the latest five with a click. Only text is stored, in `history.json` with mode 0600; audio is never stored. Verified by host tests only; the page and menu on a Mac remain unverified.
+
+- Firmware 0.3.1: when the host ends a session while the device still captures (its recording limit or a cancel), the device stops capturing as an UP click would. Firmware built and host-tested only; not verified on a device.
+
+- YiYan: the app icon now has a blue background instead of the gray tile macOS 26 draws behind a transparent icon. Not yet checked in Finder or the Dock on a Mac.
+
 - Publish go-voice 0.9.0 with automatic vocabulary learning, long-text layout and a custom push-to-talk hotkey; refresh the website download links.
 
 - YiYan: Long Text Layout switch on the AI Refinement page. In every refinement mode, a long dictation is laid out as its main sentence followed by a bulleted list of the points the speaker listed, even when they were said as one sentence separated by commas, or as short paragraphs, without rewording. Off by default. Verified by host tests only; model output on a Mac remains unverified.

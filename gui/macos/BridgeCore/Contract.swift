@@ -1,5 +1,15 @@
 import Foundation
 
+/// Bounds of the NDJSON pipe between go-voice and SpeechBridge, in step with
+/// internal/platform/bridge and internal/protocol: a line, the text of one
+/// command or event (a 30-minute dictation, or a refinement prompt), and the
+/// audio frames of one session (30 minutes of 20 ms frames).
+public enum BridgeLimits {
+  public static let line = 256 * 1024
+  public static let text = 160 * 1024
+  public static let frames: UInt32 = 90_000
+}
+
 public struct Command: Decodable {
   public let type: String
   public let sessionId: UInt32?
@@ -8,7 +18,7 @@ public struct Command: Decodable {
   public let text: String?
   public let terms: [String]?
   public init(data: Data) throws {
-    guard data.count <= 16384, String(data: data, encoding: .utf8) != nil else {
+    guard data.count <= BridgeLimits.line, String(data: data, encoding: .utf8) != nil else {
       throw BridgeError.invalid
     }
     self = try JSONDecoder().decode(Command.self, from: data)
@@ -17,7 +27,7 @@ public struct Command: Decodable {
         "warmup", "begin", "start", "pcm", "finish", "cancel", "refine", "insert", "enter",
         "delete", "clear", "ping", "shutdown", "permissions", "request-permission", "hotkey",
         "mic-start", "mic-stop",
-      ].contains(type), (text?.utf8.count ?? 0) <= 12000, (terms?.count ?? 0) <= 100,
+      ].contains(type), (text?.utf8.count ?? 0) <= BridgeLimits.text, (terms?.count ?? 0) <= 100,
       terms?.allSatisfy({ $0.utf8.count <= 256 }) ?? true
     else { throw BridgeError.invalid }
     if ["begin", "start", "pcm", "finish", "cancel", "refine", "insert", "mic-start", "mic-stop"]
@@ -33,7 +43,7 @@ public struct Command: Decodable {
   }
   public func pcm() throws -> Data {
     guard let value = payloadBase64, value.count == 856, let data = Data(base64Encoded: value),
-      data.count == 640, let sequence, sequence < 15000
+      data.count == 640, let sequence, sequence < BridgeLimits.frames
     else { throw BridgeError.invalid }
     return data
   }

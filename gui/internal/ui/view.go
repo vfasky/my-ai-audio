@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/egoist/mygo/plugins/glass"
 	"github.com/egoist/mygo/ui"
 	"github.com/vfasky/my-ai-audio/gui/internal/asr"
 	"github.com/vfasky/my-ai-audio/gui/internal/firmware"
+	"github.com/vfasky/my-ai-audio/gui/internal/history"
 	"github.com/vfasky/my-ai-audio/gui/internal/hotkey"
 	"github.com/vfasky/my-ai-audio/gui/internal/jev"
 	"github.com/vfasky/my-ai-audio/gui/internal/permission"
@@ -81,6 +83,14 @@ type Snapshot struct {
 	// words the last dictation added, which the capsule offers to undo.
 	Learn   bool
 	Learned []string
+	// Limit is how long a session may record; Limited: the session reached
+	// it and ended its recording itself.
+	Limit   time.Duration
+	Limited bool
+	// History are the dictations kept, newest first, those without words
+	// left out; Now is the time they are shown against, the clock when zero.
+	History []history.Entry
+	Now     time.Time
 }
 type Actions struct {
 	FirmwareScan, FirmwareInstall func()
@@ -136,6 +146,10 @@ type Actions struct {
 	// SetHotkey saves the chord held to record with the Mac microphone, or
 	// hotkey.Off.
 	SetHotkey func(string)
+	// DeleteHistory removes one dictation from the history; ClearHistory
+	// all but a running one.
+	DeleteHistory func(uint64)
+	ClearHistory  func()
 }
 type View struct {
 	Page                  int
@@ -181,6 +195,13 @@ type View struct {
 	hotkeyDraft  hotkey.Mods
 	// slide scrolls the words of the dictation capsule.
 	slide slide
+	// The history page: the search typed, the entry opened, the one last
+	// copied, how many are listed, and whether clearing awaits confirmation.
+	historyQuery   string
+	historyOpen    uint64
+	historyCopied  uint64
+	historyShown   int
+	historyConfirm bool
 }
 
 // TitleBarHeight is the inset title bar the window reserves for the traffic
@@ -194,6 +215,7 @@ var pages = []struct {
 	icon      *ui.SVG
 }{
 	{"voice", "设备与语音", iconWave},
+	{"history", "历史记录", iconClock},
 	{"vocabulary", "词库", iconBook},
 	{"recognition", "语音识别", iconCaption},
 	{"refinement", "AI 润色", iconSparkle},
@@ -336,15 +358,17 @@ func (v *View) pane(c *ui.Context) {
 			ui.Column(c).Padding(TitleBarHeight+18, 36, 72).AlignItems(ui.Center).Children(func() {
 				ui.Column(c).FillWidth().MaxWidth(820).Gap(28).Children(func() {
 					switch v.Page {
-					case 0:
+					case VoicePage:
 						v.device(c)
-					case 1:
+					case HistoryPage:
+						v.history(c)
+					case VocabularyPage:
 						v.vocabulary(c)
-					case 2:
+					case RecognitionPage:
 						v.recognition(c)
-					case 3:
+					case RefinementPage:
 						v.refinement(c)
-					case 4:
+					case FirmwarePage:
 						v.firmware(c)
 					case PermissionsPage:
 						v.permissions(c)
@@ -511,7 +535,11 @@ func (v *View) device(c *ui.Context) {
 		default:
 			well(c, false, func(p *ui.Painter, r ui.Rect) { drawWave(p, r, meter.Bins, false) })
 		}
-		ui.Text(c, fmt.Sprintf("%.1f s", s.Meter.Duration().Seconds())).FontSize(15).FontWeight(500).FontFeatures("tnum").SingleLine().AlignSelf(ui.Center)
+		elapsed := clock(s.Meter.Duration())
+		if live && s.Limit > 0 {
+			elapsed += " / " + clock(s.Limit)
+		}
+		ui.Text(c, elapsed).FontSize(15).FontWeight(500).FontFeatures("tnum").SingleLine().AlignSelf(ui.Center)
 	})
 
 	if s.Partial != "" || s.Original != "" || s.Refined != "" {
@@ -663,7 +691,7 @@ func (v *View) firmware(c *ui.Context) {
 		ui.Box(c).Grow(1).Height(1).Background(colRule)
 		if s.Phase == "complete" {
 			if pill(c, "goto-device", "前往设备页", pillSecondary, nil, iconArrow, false) {
-				v.Page = 0
+				v.Page = VoicePage
 			}
 		}
 		if pill(c, "install", "确认安装随附固件", pillPrimary, iconDownload, nil, !s.CanInstall(v.Snapshot.SpeechActive)) {

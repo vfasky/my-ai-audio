@@ -7,7 +7,7 @@ import (
 )
 
 // GeneralPage is the index of the app's own settings in pages.
-const GeneralPage = 6
+const GeneralPage = 7
 
 // general holds how go-voice itself behaves; the system's login items are the
 // truth for opening at login, so the switch shows what they report.

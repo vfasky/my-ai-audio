@@ -13,7 +13,6 @@ var ErrLimit = errors.New("audio recovery or session limit exceeded")
 
 var (
 	ErrSilence  = limit("连续 3 秒没有收到音频，本次语音已结束：请检查蓝牙连接，或按键松开时设备是否发送了结束信号")
-	ErrTooLong  = limit("本次语音超过 5 分钟上限")
 	ErrSequence = limit("音频帧序号超出单次语音上限")
 	ErrBacklog  = limit("乱序等待的音频帧过多，蓝牙传输可能不稳定")
 	ErrMissing  = limit("丢失的音频帧过多（超过 100 帧），蓝牙传输可能不稳定")
@@ -59,9 +58,14 @@ func (m Meter) Duration() time.Duration { return time.Duration(m.Frames) * 20 * 
 
 // Stream is advanced by one owner using an injected monotonic clock.
 type Stream struct {
-	ID                       uint32
-	Next                     uint32
-	Meter                    Meter
+	ID    uint32
+	Next  uint32
+	Meter Meter
+	// Limit is the frames the session may record, MaxFrames when zero.
+	// Full: the stream reached it and ended the recording itself; later
+	// frames and the device's own stop are ignored.
+	Limit                    uint32
+	Full                     bool
 	started, last, gap, tail time.Time
 	final                    uint32
 	stopped                  bool
@@ -76,8 +80,14 @@ func (s *Stream) Push(f Frame, now time.Time) ([]PCM, error) {
 	if s.Done || f.SessionID != s.ID {
 		return nil, nil
 	}
+	if s.Full && (s.final == EmptyFinal || f.Sequence > s.final) {
+		return nil, nil
+	}
 	if f.Sequence >= MaxFrames {
 		return nil, ErrSequence
+	}
+	if !s.stopped && f.Sequence >= s.limit() {
+		return s.fill(now)
 	}
 	if s.stopped && (s.final == EmptyFinal || f.Sequence > s.final) {
 		return nil, ErrInvalid
@@ -102,7 +112,50 @@ func (s *Stream) Push(f Frame, now time.Time) ([]PCM, error) {
 	s.Meter.Received++
 	return s.Tick(now)
 }
+
+// limit is the frames the session may record.
+func (s *Stream) limit() uint32 {
+	if s.Limit == 0 || s.Limit > MaxFrames {
+		return MaxFrames
+	}
+	return s.Limit
+}
+
+// LimitDuration is how long the session may record.
+func (s *Stream) LimitDuration() time.Duration {
+	return time.Duration(s.limit()) * 20 * time.Millisecond
+}
+
+// fill ends the recording at the limit, keeping the audio received so far,
+// as if the device had stopped there.
+func (s *Stream) fill(now time.Time) ([]PCM, error) {
+	final := EmptyFinal
+	if s.Next > 0 {
+		final = s.Next - 1
+	}
+	for seq := range s.pending {
+		if final == EmptyFinal || seq > final {
+			final = seq
+		}
+	}
+	if final != EmptyFinal && final >= s.limit() {
+		final = s.limit() - 1
+		for seq := range s.pending {
+			if seq > final {
+				delete(s.pending, seq)
+			}
+		}
+	}
+	s.Full = true
+	s.stopped = true
+	s.final = final
+	s.tail = now
+	return s.Tick(now)
+}
 func (s *Stream) Stop(final uint32, now time.Time) ([]PCM, error) {
+	if s.Full {
+		return nil, nil
+	}
 	if s.stopped {
 		if final != s.final {
 			return nil, ErrInvalid
@@ -132,8 +185,10 @@ func (s *Stream) Tick(now time.Time) ([]PCM, error) {
 	if s.Done {
 		return nil, nil
 	}
-	if !s.stopped && now.Sub(s.started) >= 5*time.Minute {
-		return nil, ErrTooLong
+	// Frames arrive in real time, so the sequence reaches the limit first;
+	// the clock is a backstop for audio that stopped counting up.
+	if !s.stopped && now.Sub(s.started) >= s.LimitDuration()+5*time.Second {
+		return s.fill(now)
 	}
 	if !s.stopped && now.Sub(s.last) >= 3*time.Second {
 		return nil, ErrSilence

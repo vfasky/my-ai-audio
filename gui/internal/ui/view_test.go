@@ -156,7 +156,7 @@ func TestSidebarNavigatesAndInstallIsGated(t *testing.T) {
 	var rec intents
 	v := testView(&rec)
 	tt := newTester(v)
-	if err := tt.Click("固件安装"); err != nil || v.Page != 4 {
+	if err := tt.Click("固件安装"); err != nil || v.Page != FirmwarePage {
 		t.Fatalf("navigate: %v page %d", err, v.Page)
 	}
 	_ = tt.Click("确认安装随附固件")
@@ -171,7 +171,7 @@ func TestSidebarNavigatesAndInstallIsGated(t *testing.T) {
 func TestRefinementSegmentsUpdateDraft(t *testing.T) {
 	var rec intents
 	v := testView(&rec)
-	v.Page = 3
+	v.Page = RefinementPage
 	tt := newTester(v)
 	if err := tt.Click("OpenAI 兼容接口"); err != nil || v.Config.Engine != "remote" {
 		t.Fatalf("engine: %v %q", err, v.Config.Engine)
@@ -199,7 +199,7 @@ func TestRefinementSegmentsUpdateDraft(t *testing.T) {
 func TestRemoteConnectionTest(t *testing.T) {
 	var rec intents
 	v := testView(&rec)
-	v.Page, v.Snapshot.Config.Engine = 3, "remote"
+	v.Page, v.Snapshot.Config.Engine = RefinementPage, "remote"
 	tt := newTester(v)
 	// Typed on the page, not saved yet.
 	v.Config.Endpoint, v.Config.Model, v.secret = "https://provider.example/v1", "m", "typed"
@@ -230,7 +230,7 @@ func TestRemoteConnectionTest(t *testing.T) {
 func TestSaveSettingsHandsOverTypedKey(t *testing.T) {
 	var rec intents
 	v := testView(&rec)
-	v.Page, v.Snapshot.Config.Engine = 3, "remote"
+	v.Page, v.Snapshot.Config.Engine = RefinementPage, "remote"
 	tt := newTester(v)
 	v.Config.Endpoint, v.secret = "https://provider.example/v1", "typed"
 	tt.Frame()
@@ -253,7 +253,7 @@ func TestSaveSettingsHandsOverTypedKey(t *testing.T) {
 func TestVocabularyTabsAndReplacements(t *testing.T) {
 	var rec intents
 	v := testView(&rec)
-	v.Page = 1
+	v.Page = VocabularyPage
 	v.Snapshot.Terms = []vocabulary.Term{{Term: "私域宝", NormalizedTerm: "私域宝", Source: "manual", Weight: 50}}
 	tt := newTester(v)
 	if !tt.HasText("词条 · 1") || !tt.HasText("替换词 · 0") || !tt.HasText("私域宝") {
@@ -300,7 +300,7 @@ func TestVocabularyTabsAndReplacements(t *testing.T) {
 func TestVocabularyImportExport(t *testing.T) {
 	var rec intents
 	v := testView(&rec)
-	v.Page = 1
+	v.Page = VocabularyPage
 	tt := newTester(v)
 	if err := tt.Click("导入"); err != nil || rec.imports != 1 {
 		t.Fatalf("import: %v", err)
@@ -319,7 +319,7 @@ func TestVocabularyImportExport(t *testing.T) {
 func TestRecognitionDropdownChoosesOnlineModel(t *testing.T) {
 	var rec intents
 	v := testView(&rec)
-	v.Page = 2
+	v.Page = RecognitionPage
 	tt := newTester(v)
 	// Local by default: no key, no test, no disclosure.
 	if !tt.HasText("Apple 本地（SpeechAnalyzer）") || tt.HasText("测试连接") || tt.HasText("删除凭据") {
@@ -361,7 +361,7 @@ func TestRecognitionDropdownChoosesOnlineModel(t *testing.T) {
 func TestRecognitionDropdownChoosesWholeRecording(t *testing.T) {
 	var rec intents
 	v := testView(&rec)
-	v.Page = 2
+	v.Page = RecognitionPage
 	tt := newTester(v)
 	_ = tt.Click("选择识别引擎")
 	_ = tt.Click("支付宝 MaaS")
@@ -387,7 +387,7 @@ func TestRecognitionKeepsKeysAcrossEngineSwitches(t *testing.T) {
 	}
 	var rec intents
 	v := testView(&rec)
-	v.Page = 2
+	v.Page = RecognitionPage
 	tt := newTester(v)
 	provider := func(label string) {
 		t.Helper()
@@ -467,7 +467,7 @@ func TestKeyFieldsShowSavedKeys(t *testing.T) {
 		t.Fatal("default Jev account")
 	}
 	// The recognition page asks about the drafted engine's account.
-	v.Page = 2
+	v.Page = RecognitionPage
 	v.ASR = asr.Choices[5].Config
 	v.Snapshot.ASR = v.ASR
 	v.Loaded = true
@@ -485,7 +485,7 @@ func TestKeyFieldsShowSavedKeys(t *testing.T) {
 func TestRecognitionOmniKeepsProviderCredentialsSeparate(t *testing.T) {
 	var rec intents
 	v := testView(&rec)
-	v.Page = 2
+	v.Page = RecognitionPage
 	v.ASR = asr.Choices[1].Config
 	v.asrSecret = "alipay-key"
 	tt := newTester(v)
@@ -614,7 +614,7 @@ func TestSnapshots(t *testing.T) {
 func TestFirmwarePageShowsVersionsAndUpdate(t *testing.T) {
 	var rec intents
 	v := testView(&rec)
-	v.Page = 4
+	v.Page = FirmwarePage
 	v.Snapshot.Firmware = "0.1.0"
 	v.Snapshot.BundledFirmware = "0.2.0"
 	tt := newTester(v)
@@ -637,7 +637,7 @@ func TestFirmwarePageShowsVersionsAndUpdate(t *testing.T) {
 func TestFirmwareErrorShowsCodeAndStage(t *testing.T) {
 	var rec intents
 	v := testView(&rec)
-	v.Page = 4
+	v.Page = FirmwarePage
 	v.Snapshot.Install = firmware.State{Phase: "error", HelperReady: true, ErrorCode: "PREFLIGHT_READ_UNAVAILABLE", FailedStage: "preflight", Message: firmware.ErrorLabel("PREFLIGHT_READ_UNAVAILABLE")}
 	tt := newTester(v)
 	if !tt.HasText("错误码 PREFLIGHT_READ_UNAVAILABLE · 失败阶段：安装前检查") {
@@ -772,7 +772,7 @@ func TestGeneralPageCustomHotkey(t *testing.T) {
 func TestVocabularyJevTab(t *testing.T) {
 	var rec intents
 	v := testView(&rec)
-	v.Page = 1
+	v.Page = VocabularyPage
 	tt := newTester(v)
 	if err := tt.Click("Jev 判断"); err != nil {
 		t.Fatal(err)
@@ -812,7 +812,7 @@ func TestVocabularyJevTab(t *testing.T) {
 func TestRefinementStreamAndProviderRoutingDraft(t *testing.T) {
 	var rec intents
 	v := testView(&rec)
-	v.Page = 3
+	v.Page = RefinementPage
 	tt := newTester(v)
 	for _, text := range []string{"OpenAI 兼容接口", "供应商路由", "流式输出", "测试连接", "保存到钥匙串", "端点", "API key"} {
 		if text != "OpenAI 兼容接口" && tt.HasText(text) {

@@ -32,7 +32,7 @@ Control values are complete UTF-8 JSON objects with `v: 1` and a maximum size
 of 182 bytes. Device-to-host messages are:
 
 ```json
-{"v":1,"type":"hello","device":"ai-passport","fw":"0.3.0","codec":"ima-adpcm","sampleRate":16000,"channels":1,"frameMs":20}
+{"v":1,"type":"hello","device":"ai-passport","fw":"0.3.1","codec":"ima-adpcm","sampleRate":16000,"channels":1,"frameMs":20}
 {"v":1,"type":"ptt_down","sessionId":123,"seq":0}
 {"v":1,"type":"ptt_up","sessionId":123,"seq":1,"finalSequence":7}
 {"v":1,"type":"button_event","button":"down","event":"click","durationMs":0,"seq":2}
@@ -57,6 +57,10 @@ Host-to-device messages are:
 
 The firmware accepts `ready`, `recording`, `processing`, `success`, and `error`.
 The Vokie plugin normally sends `ready`, `processing`, `success`, or `error`.
+From firmware 0.3.1, `processing`, `success`, `error` or `ready` received while
+the device still captures also stops the capture as an `UP` click would: the
+host ended the session, at its recording limit or by cancelling it. The device
+then sends `ptt_up`, which the host ignores for a session it already ended.
 The optional message field is diagnostic and must not contain transcripts.
 
 ## Button semantics
@@ -142,6 +146,14 @@ The Vokie plugin bounds a session to 15,000 audio frames (five minutes), waits
 1.2 seconds for session acceptance, treats three seconds without valid audio as
 a stall, and waits at most 500 ms for announced tail frames after `ptt_up`.
 These are host implementation limits, not additional BLE fields.
+
+The go-voice desktop host bounds a session to 90,000 audio frames (30 minutes),
+or less for an engine that accepts less (3 minutes 50 seconds for
+`qwen3-asr-flash`, 10 minutes for Omni Realtime). At the bound it does not
+cancel: it treats the received audio as complete, recognizes it, and sends
+`host_state` `processing`, ignoring later frames and the device's `ptt_up`. It
+therefore accepts any `finalSequence` in `ptt_up` and judges it against the
+session.
 
 ## Security and device selection
 

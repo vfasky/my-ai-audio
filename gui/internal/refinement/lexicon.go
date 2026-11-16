@@ -10,6 +10,10 @@ import (
 	"github.com/mozillazg/go-pinyin"
 )
 
+// MaxRunes is the longest dictation the model steps take: a longer one,
+// such as a long recording, is inserted as recognized.
+const MaxRunes = maxRetrievalRunes
+
 const (
 	maxRetrievalRunes = 8000
 	maxRetrievedTerms = 256

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -17,9 +18,15 @@ const (
 	InfoUUID    = "676f0004-766f-6963-652d-617564696f00"
 	FrameBytes  = 166
 	Samples     = 320
-	MaxFrames   = 15000
-	EmptyFinal  = uint32(0xffffffff)
+	// MaxFrames bounds the audio sequence of one session: MaxDuration of
+	// 20 ms frames.
+	MaxFrames  = uint32(MaxDuration / (20 * time.Millisecond))
+	EmptyFinal = uint32(0xffffffff)
 )
+
+// MaxDuration is the longest session the host records; an engine may set a
+// shorter one. At the bound the host ends the recording and recognizes it.
+const MaxDuration = 30 * time.Minute
 
 var ErrInvalid = errors.New("invalid protocol data")
 
@@ -170,9 +177,6 @@ func ParseControl(data []byte) (Control, error) {
 		}
 	}
 	if c.DurationMS > 60000 || c.Event == "long" && c.DurationMS < 650 {
-		return c, ErrInvalid
-	}
-	if c.Type == "ptt_up" && c.FinalSequence != EmptyFinal && c.FinalSequence >= MaxFrames {
 		return c, ErrInvalid
 	}
 	return c, nil

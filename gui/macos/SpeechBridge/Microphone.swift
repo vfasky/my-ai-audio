@@ -184,7 +184,7 @@ final class Microphone: @unchecked Sendable {
   }
 
   private func send(_ r: inout Recording, _ frame: Data) {
-    guard r.sequence < 15000 else { return }
+    guard r.sequence < BridgeLimits.frames else { return }
     emit([
       "type": "mic", "sessionId": r.id, "sequence": r.sequence,
       "payloadBase64": frame.base64EncodedString(),

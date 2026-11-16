@@ -44,6 +44,32 @@ type Coordinator struct {
 	// StartTimeout bounds the wait for the recognizer's ready, 1.2 s when
 	// zero; the audio meanwhile is buffered.
 	StartTimeout time.Duration
+	// MaxDuration bounds what a session records, protocol.MaxDuration when
+	// zero or longer. At the bound the recording ends and is recognized;
+	// Limited reports that the session ended so.
+	MaxDuration time.Duration
+	Limited     bool
+}
+
+// LimitDuration is how long a session may record.
+func (c *Coordinator) LimitDuration() time.Duration {
+	if c.MaxDuration <= 0 || c.MaxDuration > protocol.MaxDuration {
+		return protocol.MaxDuration
+	}
+	return c.MaxDuration
+}
+
+// limitFrames is LimitDuration in 20 ms frames.
+func (c *Coordinator) limitFrames() uint32 {
+	return uint32(c.LimitDuration() / (20 * time.Millisecond))
+}
+
+// noteLimit records that the stream ended the recording at the bound.
+func (c *Coordinator) noteLimit() {
+	if c.Stream != nil && c.Stream.Full && !c.Limited {
+		c.Limited = true
+		c.Phase = "tail"
+	}
 }
 
 const defaultStartTimeout = 1200 * time.Millisecond
@@ -113,6 +139,7 @@ func (c *Coordinator) begin(now time.Time) {
 	c.Refined = ""
 	c.Meter = protocol.Meter{}
 	c.Stream = nil
+	c.Limited = false
 	c.Mic, c.micOpen, c.micDone = false, false, false
 }
 
@@ -170,7 +197,8 @@ func (c *Coordinator) MicAudio(id uint32, pcm []byte, now time.Time) []Effect {
 	c.lastMic = now
 	c.Meter.Add(p)
 	out := c.consume([]protocol.PCM{p}, now)
-	if c.Active && c.micOpen && c.micSeq >= protocol.MaxFrames {
+	if c.Active && c.micOpen && c.micSeq >= c.limitFrames() {
+		c.Limited = true
 		stop := c.MicRelease(now)
 		out = append(append(out, stop...), c.endMic(now)...)
 	}
@@ -262,6 +290,7 @@ func (c *Coordinator) Control(v protocol.Control, now time.Time) []Effect {
 		c.begin(now)
 		c.wire = v.SessionID
 		c.Stream = protocol.NewStream(v.SessionID, now)
+		c.Stream.Limit = c.limitFrames()
 		return append([]Effect{{Type: "start", ID: c.Generation}}, c.states("recording")...)
 	case "ptt_up":
 		if !c.Active || c.Stream == nil || v.SessionID != c.wire {
@@ -303,6 +332,7 @@ func (c *Coordinator) Audio(f protocol.Frame, now time.Time) []Effect {
 	if e != nil {
 		return c.Cancel(e.Error())
 	}
+	c.noteLimit()
 	return c.consume(frames, now)
 }
 func (c *Coordinator) Tick(now time.Time) []Effect {
@@ -330,6 +360,7 @@ func (c *Coordinator) Tick(now time.Time) []Effect {
 	if e != nil {
 		return c.Cancel(e.Error())
 	}
+	c.noteLimit()
 	return c.consume(frames, now)
 }
 func (c *Coordinator) consume(frames []protocol.PCM, now time.Time) []Effect {

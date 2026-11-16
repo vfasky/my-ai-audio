@@ -4,7 +4,7 @@ import Foundation
 
 let outputLock = NSLock()
 func emit(_ object: [String: Any]) {
-  guard let data = try? JSONSerialization.data(withJSONObject: object), data.count <= 16384 else {
+  guard let data = try? JSONSerialization.data(withJSONObject: object), data.count <= BridgeLimits.line else {
     return
   }
   outputLock.lock()
@@ -43,7 +43,7 @@ input.readabilityHandler = { handle in
       @unknown default: exit(2)
       }
     }
-    if inputBuffer.count > 16384 { exit(2) }
+    if inputBuffer.count > BridgeLimits.line { exit(2) }
   }
 }
 Task { @MainActor in

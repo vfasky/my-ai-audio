@@ -32,6 +32,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 )
 
 type settings struct {
@@ -102,6 +103,8 @@ type application struct {
 	aiTerms   []string
 	aiTermsID uint32
 	aiTermsOK bool
+	// history keeps the dictations of the last days.
+	history *dictations
 }
 
 type paintKind uint8
@@ -176,6 +179,7 @@ func Run(icon, tray []byte) {
 	mygo.App.OnBeforeQuit(func(_ *mygo.QuitEvent) {
 		a.quitting = true
 		a.effects(a.coordinator.Cancel("Application exiting"))
+		a.flushHistory()
 		if a.installer != nil {
 			a.installer.Close()
 			select {
@@ -204,18 +208,27 @@ func (a *application) startTray(icon []byte) {
 		Icon:           icon,
 		IconIsTemplate: true,
 		ToolTip:        "伊言",
-		Menu: mygo.NewMenu([]*mygo.MenuItem{
-			{Label: "设置…", Accelerator: "CmdOrCtrl+,", Click: func(*mygo.MenuItem, *mygo.Window) { a.showMain() }},
-			{Label: "检查更新…", Click: func(*mygo.MenuItem, *mygo.Window) { a.checkForUpdates() }},
-			mygo.Separator(),
-			{Label: "退出 伊言", Accelerator: "CmdOrCtrl+Q", Click: func(*mygo.MenuItem, *mygo.Window) { mygo.App.Quit() }},
-		}),
+		Menu:           a.trayMenu(),
 	})
 	if err != nil {
 		a.view.Snapshot.Status = "菜单栏图标不可用"
 		return
 	}
 	a.tray = tray
+}
+
+// trayMenu is the menu of the menu-bar icon: the latest dictations to
+// copy, settings, the update check, and quit.
+func (a *application) trayMenu() *mygo.Menu {
+	return mygo.NewMenu([]*mygo.MenuItem{
+		{Label: "最近记录", Submenu: a.recentMenu()},
+		{Label: "历史记录…", Click: func(*mygo.MenuItem, *mygo.Window) { a.showHistory() }},
+		mygo.Separator(),
+		{Label: "设置…", Accelerator: "CmdOrCtrl+,", Click: func(*mygo.MenuItem, *mygo.Window) { a.showMain() }},
+		{Label: "检查更新…", Click: func(*mygo.MenuItem, *mygo.Window) { a.checkForUpdates() }},
+		mygo.Separator(),
+		{Label: "退出 伊言", Accelerator: "CmdOrCtrl+Q", Click: func(*mygo.MenuItem, *mygo.Window) { mygo.App.Quit() }},
+	})
 }
 func (a *application) showMain() {
 	if a.window == nil {
@@ -368,6 +381,7 @@ func (a *application) initialize() {
 			a.config = s
 		}
 	}
+	a.loadHistory()
 	a.config.ASR = asr.Normalize(a.config.ASR)
 	a.config.Jev = jev.Normalize(a.config.Jev)
 	a.config.Hotkey = hotkey.Normalize(a.config.Hotkey)
@@ -462,6 +476,8 @@ func (a *application) initialize() {
 			}
 		},
 		ConfigurePacks:   a.configurePacks,
+		DeleteHistory:    a.deleteHistory,
+		ClearHistory:     a.clearHistory,
 		SetHotkey:        a.setHotkey,
 		ExportVocabulary: a.exportVocabulary,
 		ConfigureASR:     a.configureASR,
@@ -689,6 +705,7 @@ func (a *application) syncSession() {
 	s.Hotkey = a.config.Hotkey
 	s.Learn = !a.config.LearnOff
 	s.CanCommit = c.CanCommit()
+	s.Limit, s.Limited = c.LimitDuration(), c.Limited
 	if c.Status != "" {
 		s.Status = c.Status
 	}
@@ -697,7 +714,7 @@ func (a *application) syncSession() {
 func (a *application) present() {
 	if a.window != nil && a.window.IsVisible() {
 		// A live dictation capsule does not need to rebuild hidden settings pages.
-		sessionOnly := a.paint&paintCatalog == 0 && a.hudShown && a.view.Page != 0
+		sessionOnly := a.paint&paintCatalog == 0 && a.hudShown && a.view.Page != appui.VoicePage && a.view.Page != appui.HistoryPage
 		if !sessionOnly {
 			a.window.Invalidate()
 		}
@@ -1318,6 +1335,7 @@ func (a *application) effects(effects []device.Effect) {
 		case "host_state":
 			a.sendBluetooth(map[string]any{"type": "host_state", "state": e.State})
 		case "start":
+			a.beginHistory(e.ID)
 			a.aiTerms, a.aiTermsID, a.aiTermsOK = nil, 0, false
 			a.terms = a.store.Contextual(100)
 			a.correctionTerms = a.store.CorrectionTerms()
@@ -1340,6 +1358,7 @@ func (a *application) effects(effects []device.Effect) {
 				a.sendSpeech(map[string]any{"type": "finish", "sessionId": e.ID, "text": e.Text})
 			}
 		case "cancel":
+			a.noteCancel(e.ID)
 			a.closeOnline()
 			if a.refineCancel != nil {
 				a.refineCancel()
@@ -1361,6 +1380,7 @@ func (a *application) effects(effects []device.Effect) {
 			a.sendSpeech(map[string]any{"type": e.Type, "sessionId": e.ID, "text": e.Text})
 		}
 	}
+	a.trackHistory()
 	a.live.Store(a.coordinator.Active)
 	a.mark(paintSession)
 	if !a.inPost {
@@ -1391,6 +1411,13 @@ func (a *application) sendLocalPCM(id, seq uint32, pcm []byte) {
 	}
 }
 func (a *application) refine(e device.Effect) {
+	if utf8.RuneCountInString(e.Text) > refinement.MaxRunes && (a.config.Refinement.Mode != "off" || a.config.Jev.Enabled) {
+		// A long recording: the model steps would only time out or decline
+		// it, so insert the recognized text, with the replacements, now.
+		a.view.Snapshot.Status = longTextStatus
+		a.effects(a.coordinator.Speech("refinement_done", e.ID, a.store.Correct(e.Text), time.Now()))
+		return
+	}
 	if a.config.Refinement.Mode == "off" && !a.config.Jev.Enabled && !a.store.NeedsSegmentation(e.Text) {
 		// No refinement: insert the recognized text, with the vocabulary's
 		// replacements, at once.
@@ -1487,6 +1514,9 @@ func (a *application) refine(e device.Effect) {
 	}()
 }
 
+// longTextStatus says why a long dictation went in without refinement.
+var longTextStatus = fmt.Sprintf("文字超过 %d 字，已跳过 AI 润色，直接插入原文。", refinement.MaxRunes)
+
 const (
 	micDenied    = "麦克风未授权：请到“权限”页打开麦克风后重试"
 	micRequested = "请在系统弹窗中允许伊言使用麦克风，然后再按住热键"
@@ -1581,8 +1611,10 @@ func (a *application) setHotkey(id string) {
 }
 
 // applyASR gives an online engine time to connect, a little longer than its
-// own start timeout so that its reason ends the session.
+// own start timeout so that its reason ends the session, and bounds the
+// recording by what the engine accepts.
 func (a *application) applyASR() {
+	a.coordinator.MaxDuration = a.config.ASR.MaxDuration()
 	a.coordinator.StartTimeout = 0
 	if a.config.ASR.Online() {
 		a.coordinator.StartTimeout = asr.StartTimeout + 500*time.Millisecond

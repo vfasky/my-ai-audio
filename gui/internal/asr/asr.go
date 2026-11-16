@@ -97,6 +97,27 @@ func (c Config) Streaming() bool {
 // modelFlash recognizes a whole recording in one HTTP request.
 const modelFlash = "qwen3-asr-flash"
 
+// WholeMaxDuration bounds a recording sent whole. qwen3-asr-flash takes at
+// most 5 minutes and 10 MB with the Base64 encoding, which a 16 kHz 16-bit
+// mono WAV passes after about 3 minutes 54 seconds.
+const WholeMaxDuration = 3*time.Minute + 50*time.Second
+
+// OmniMaxDuration bounds an Omni Realtime recording: it is committed as one
+// input turn, and the service keeps at most 600 seconds of audio context.
+const OmniMaxDuration = 10 * time.Minute
+
+// MaxDuration is how long a session with c may record; zero leaves the
+// host's own bound.
+func (c Config) MaxDuration() time.Duration {
+	switch {
+	case c.Engine == EngineOmni:
+		return OmniMaxDuration
+	case c.Online() && !c.Streaming():
+		return WholeMaxDuration
+	}
+	return 0
+}
+
 // Choice is one entry of the engine drop-down.
 type Choice struct {
 	ID, Label string

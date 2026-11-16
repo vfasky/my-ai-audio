@@ -282,3 +282,60 @@ func TestMicSessionStopsAtFrameLimit(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+// A badge session at its limit ends the recording itself and recognizes
+// it, instead of cancelling; the device's late stop changes nothing.
+func TestBadgeSessionEndsAtLimit(t *testing.T) {
+	now := time.Unix(1, 0)
+	c := Coordinator{MaxDuration: 100 * time.Millisecond}
+	start(&c, 9, 0, now)
+	id := c.Generation
+	c.Speech("ready", id, "", now)
+	b := make([]byte, 166)
+	binary.LittleEndian.PutUint16(b[3:], 320)
+	for i := uint32(0); i < 5; i++ {
+		c.Audio(protocol.Frame{SessionID: 9, Sequence: i, Payload: b}, now)
+	}
+	if c.Limited || c.Phase != "recording" {
+		t.Fatal("limited early", c.Phase)
+	}
+	e := c.Audio(protocol.Frame{SessionID: 9, Sequence: 5, Payload: b}, now)
+	got := types(e)
+	if !c.Active || !c.Limited || c.Phase != "finalizing" || len(got) != 2 || got[0] != "finish" || got[1] != "host_state" || e[1].State != "processing" {
+		t.Fatal(got, c.Phase, c.Limited)
+	}
+	if e := c.Control(protocol.Control{Type: "ptt_up", SessionID: 9, Seq: 1, FinalSequence: 90020}, now); len(e) != 0 || !c.Active {
+		t.Fatal("late stop", types(e))
+	}
+	if e := c.Speech("final", id, "很长的一段话", now); len(e) != 1 || e[0].Type != "refine" {
+		t.Fatal(types(e))
+	}
+}
+
+func TestLimitDurationDefaultsAndCaps(t *testing.T) {
+	c := Coordinator{}
+	if c.LimitDuration() != protocol.MaxDuration || c.limitFrames() != protocol.MaxFrames {
+		t.Fatal(c.LimitDuration())
+	}
+	c.MaxDuration = time.Hour
+	if c.LimitDuration() != protocol.MaxDuration {
+		t.Fatal("longer than the host bound")
+	}
+	c.MaxDuration = 230 * time.Second
+	if c.limitFrames() != 11500 {
+		t.Fatal(c.limitFrames())
+	}
+}
+
+func TestMicSessionStopsAtEngineLimit(t *testing.T) {
+	now := time.Unix(1, 0)
+	c := Coordinator{MaxDuration: 40 * time.Millisecond}
+	c.MicStart(now)
+	id := c.Generation
+	c.Speech("ready", id, "", now)
+	c.MicAudio(id, make([]byte, 640), now)
+	e := c.MicAudio(id, make([]byte, 640), now)
+	if got := types(e); !c.Limited || len(got) != 3 || got[1] != "mic_stop" || got[2] != "finish" {
+		t.Fatal(got)
+	}
+}
