@@ -117,7 +117,7 @@ const (
 
 // Run starts the app; icon is the packaged PNG app icon shown in the sidebar
 // and tray the menu-bar template icon.
-func Run(icon, tray []byte) {
+func Run(icon, logo, tray []byte) {
 	if !mygo.App.RequestSingleInstanceLock() {
 		return
 	}
@@ -135,7 +135,7 @@ func Run(icon, tray []byte) {
 	// (docs/updates.md); debug builds never do.
 	mygo.Use(updaterui.New(updater.Options{Language: "zh-Hans", Icon: icon}))
 	mygo.App.WhenReady(func() {
-		if bitmap, err := nativeui.DecodeBitmap(icon); err == nil {
+		if bitmap, err := nativeui.DecodeBitmap(logo); err == nil {
 			a.view.AppIcon = bitmap
 		}
 		a.atLogin = mygo.App.WasOpenedAtLogin()

@@ -153,7 +153,7 @@ app="$PWD/build/debug/darwin-arm64/go-voice-debug.app"
 exe="$app/Contents/MacOS/go-voice-debug"
 log="$PWD/build/dev.log"
 fingerprint() {
-  find main.go go.mod go.sum mygo.json internal resources/icon.png resources/entitlements.plist scripts/stage-debug-project.mjs -type f \
+  find main.go go.mod go.sum mygo.json internal resources/icon.png resources/logo.png resources/entitlements.plist scripts/stage-debug-project.mjs -type f \
     -exec stat -f '%m %z %N' {} + | shasum
 }
 app_pid() { pgrep -xf "$exe" | head -n 1 || true; }

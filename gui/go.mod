@@ -4,7 +4,7 @@ go 1.27.3
 
 require (
 	github.com/ebitengine/purego v0.11.1
-	github.com/egoist/mygo v0.7.4
+	github.com/egoist/mygo v0.9.1
 	github.com/mozillazg/go-pinyin v0.21.0
 	github.com/yanyiwu/gojieba v1.4.7
 )

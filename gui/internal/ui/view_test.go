@@ -582,7 +582,7 @@ func TestSnapshots(t *testing.T) {
 	s.Meter.Bins[31], s.Meter.RMS, s.Meter.Peak, s.Meter.Frames = 0.62, 0.18, 0.62, 214
 	s.Meter.Received = 214
 	s.Terms = []vocabulary.Term{{Term: "Go Voice", NormalizedTerm: "go voice", Source: "manual", Weight: 50, Locked: true}, {Term: "SpeechAnalyzer", NormalizedTerm: "speechanalyzer", Source: "ai", Weight: 30}}
-	if b, err := os.ReadFile("../../resources/icon.png"); err == nil {
+	if b, err := os.ReadFile("../../resources/logo.png"); err == nil {
 		v.AppIcon, _ = ui.DecodeBitmap(b)
 	}
 	tt := newTester(v)
