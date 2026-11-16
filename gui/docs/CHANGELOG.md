@@ -6,6 +6,14 @@
 
 Each `## <version>` section is the release note of one signed `go-voice` release. `scripts/release.sh` requires the section in both language files; the Simplified Chinese section is signed into the update manifest and shown in the in-app update window, because the app interface is Chinese. Write user-visible changes only and keep both sections aligned. See [updates and releases](updates.md).
 
+## 0.10.0
+
+- Record up to 30 minutes per session instead of 5. At the limit the recording ends and is recognized and inserted instead of being cancelled, and the capsule counts down the last minute. Engines that accept less keep a shorter limit: 3 minutes 50 seconds for qwen3-asr-flash and 10 minutes for Omni Realtime. A dictation longer than 8,000 characters skips Jev and AI refinement and inserts the recognized text.
+- Add a History page and a Recent menu in the menu bar. The recognized text of every session of the last 7 days is kept on this Mac, including sessions that were cancelled, failed, disconnected or interrupted by quitting. Entries can be searched, opened, copied, deleted or cleared. The menu bar copies one of the latest five with a click. Only text is stored; audio is never stored.
+- The app icon now has a blue background instead of the gray tile macOS 26 draws behind a transparent icon.
+
+Install the Apple Silicon DMG on macOS 26 or later, or choose Check for Updates… in an installed release. Bundled firmware remains 0.3.0. Open History to recover a dictation, or the menu bar for the latest five. Build and setup instructions are in the [application guide](https://github.com/vfasky/my-ai-audio/blob/go-voice-v0.10.0/gui/README.md). Host tests cover the 30-minute limit, history storage and the History page; long recordings with each engine, the page and menu on a Mac, and firmware auto-stop on a device remain unverified.
+
 ## 0.9.0
 
 - After a dictation is inserted, names and terms the vocabulary lacks join it as Auto terms, and the capsule shows them with Undo for four seconds. With AI refinement on, the refinement model names them in the same request, so Chinese names are learned too; with refinement off, a local rule picks up English names such as Plaud, GPT-4o or iPhone. Undone or deleted words are not learned again; the Terms tab can turn learning off.
